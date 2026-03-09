@@ -1,88 +1,83 @@
 # LUMINA STUDIO - Professional AI Video Editor
 
-Lumina Studio is a high-performance, cross-platform video editing application built with a modern tech stack for professional creators.
+Lumina Studio is a high-performance, cross-platform video editing application designed for the next generation of content creators. By combining a professional-grade timeline engine with cutting-edge AI capabilities, Lumina Studio simplifies complex editing tasks while maintaining the precision required for high-end production.
+
+## 🌟 Key Features
+
+### 🎬 Professional Timeline Engine
+- **Multi-Track Editing**: Support for unlimited video and audio tracks with independent locking and visibility controls.
+- **Precision Tools**: Frame-accurate cutting, trimming, and sliding tools for total control over your edit.
+- **Real-Time Preview**: High-performance preview monitor with GPU acceleration for smooth playback of complex projects.
+- **Inspector Panel**: Detailed control over clip properties, transforms, and color grading.
+
+### 🤖 AI-Powered Workflow
+- **AI Clip Generation**: Generate high-quality video clips from text descriptions using Stable Video Diffusion.
+- **Smart Subtitles**: Automatic transcription and subtitle generation powered by OpenAI's Whisper.
+- **Background Removal**: Instant, high-quality background removal for video subjects without green screens.
+- **4K Upscaling**: Enhance low-resolution footage to crisp 4K using advanced AI upscaling models.
+
+### 📁 Media Management
+- **Automated Thumbnails**: Instant thumbnail generation for all imported media assets.
+- **Metadata Extraction**: Automatic detection of resolution, frame rate, and duration.
+- **Organized Media Pool**: A clean, searchable interface for managing all your project assets.
 
 ## 🚀 Tech Stack
 
-- **Desktop**: Tauri 2.0 (Rust) + React + WebGPU
-- **Mobile**: React Native 0.74 (New Architecture) + Skia
-- **Core Engine**: FFmpeg (Decoding/Encoding) + ONNX Runtime (AI)
-- **State**: Zustand + Immer
-- **Styling**: Tailwind CSS (Cinematic Black + Gold)
+- **Desktop**: [Tauri 2.0](https://tauri.app/) (Rust) + React + WebGPU
+- **Mobile**: [React Native 0.74](https://reactnative.dev/) (New Architecture) + Skia
+- **Core Engine**: Zustand + Immer for high-performance state management
+- **Video Processing**: FFmpeg (via Rust bindings) for robust encoding/decoding
+- **AI Inference**: ONNX Runtime for cross-platform AI model execution
+- **Styling**: Tailwind CSS with a custom "Cinematic Black + Gold" design system
 
 ## 📁 Monorepo Structure
 
 ```text
 /apps
-  /desktop        - Tauri application (Windows/Linux)
+  /desktop        - Tauri application (Windows/Linux/macOS)
   /mobile         - React Native application (Android/iOS)
 /packages
-  /core           - Shared timeline engine & editing logic
-  /ui             - Shared design system & components
-  /ffmpeg-bridge  - Rust-based video processing bindings
-  /ai-models      - ONNX inference tools & model management
+  /core           - Shared timeline engine, state management, and editing logic
+  /ui             - Shared design system, primitive components, and icons
+  /ffmpeg-bridge  - Rust-based video processing bindings for FFmpeg
+  /ai-models      - ONNX inference tools and AI model management
 ```
 
-## 🛠 Prerequisites
+## 🛠 Getting Started
 
-### 1. Install Node.js
-Download from [nodejs.org](https://nodejs.org/). Use version 20+.
+### Prerequisites
+1. **Node.js**: Version 20 or higher.
+2. **Rust**: Required for desktop builds (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`).
+3. **Android Studio / Xcode**: Required for mobile development.
+4. **FFmpeg**: Must be installed and available in your system PATH.
 
-### 2. Install Rust (for Desktop)
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-### 3. Install Android Studio (for Mobile)
-- Install Android SDK, Build Tools, and NDK.
-- Set `ANDROID_HOME` environment variable.
-
-### 4. Install FFmpeg
-Ensure `ffmpeg` is available in your system PATH.
-
-## 🏃 Running the Project
-
-### Install Dependencies
+### Installation
 ```bash
 npm install
 ```
 
-### Start Desktop (Tauri)
+### Development
 ```bash
+# Start Desktop (Tauri)
 npm run dev:desktop
-```
 
-### Start Mobile (React Native)
-```bash
+# Start Mobile (React Native)
 npm run dev:mobile
 ```
 
-## 🏗 Build & Release
+## 🎨 Design Philosophy
+Lumina Studio follows a **"Cinematic Brutalist"** aesthetic.
+- **Color Palette**: Deep Obsidian (`#070608`), Lumina Gold (`#F5A623`), and Amber accents.
+- **Typography**: 
+  - *Cinzel*: For bold, cinematic headings.
+  - *Nunito Sans*: For clean, legible UI elements.
+  - *JetBrains Mono*: For technical data and timecodes.
 
-### Build Desktop
-```bash
-npm run build:desktop
-```
+## 🗺 Roadmap
+- [ ] **Cloud Collaboration**: Real-time multi-user editing sessions.
+- [ ] **Advanced Color Grading**: Support for LUTs and professional color wheels.
+- [ ] **AI Voiceover**: Text-to-speech with emotional inflection.
+- [ ] **Plugin System**: Community-driven effects and transitions.
 
-### Build Android (APK)
-```bash
-npm run android
-```
-
-### Build iOS
-```bash
-npm run ios
-```
-
-## 🎨 Design System
-- **Background**: `#070608`
-- **Primary Accent**: `#F5A623` (Gold)
-- **Secondary Accent**: `#FF8C00` (Amber)
-- **Typography**: Cinzel (Headings), Nunito Sans (UI), JetBrains Mono (Data)
-
-## 🤖 AI Integration
-Lumina Studio integrates open-source models via ONNX Runtime:
-- **Stable Video Diffusion**: For AI clip generation.
-- **Whisper**: For automatic subtitle generation.
-- **RMBG**: For real-time background removal.
-- **Real-ESRGAN**: For 4K video upscaling.
+---
+Built with ❤️ for creators by the Lumina Team.

@@ -3,8 +3,8 @@ import {
   Play, Pause, SkipBack, SkipForward, Scissors, MousePointer2, 
   Hand, Search, Plus, Layers, Video, Music, Type, Sparkles, 
   Settings, Download, Maximize2, Volume2, Clock, ChevronRight, 
-  ChevronDown, MoreVertical, Trash2, Palette, Monitor, Smartphone, 
-  Cpu, Globe, Zap, Box, Activity, Terminal, Eye, EyeOff, Lock, Unlock
+  ChevronDown, ChevronUp, MoreVertical, Trash2, Palette, Monitor, Smartphone, 
+  Cpu, Globe, Zap, Box, Activity, Terminal, Eye, EyeOff, Lock, Unlock, ArrowRightLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -12,6 +12,7 @@ import { twMerge } from "tailwind-merge";
 
 // --- Core Logic Simulation ---
 import { useTimelineStore } from "../packages/core/timeline-engine";
+import ColorNodeEditor from "./components/ColorNodeEditor";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -31,13 +32,46 @@ const THEME = {
 
 export default function App() {
   const { 
-    tracks, clips, mediaPool, playheadFrame, zoom, selectedClipId,
-    setPlayhead, setZoom, selectClip, updateClip, addMedia, addClip, 
-    toggleTrackVisibility, toggleTrackLock 
+    tracks, clips, mediaPool, playheadFrame, zoom, selectedClipId, activeTool,
+    rippleEnabled, setRippleEnabled,
+    setPlayhead, setZoom, selectClip, updateClip, removeClip, addMedia, addClip, 
+    toggleTrackVisibility, toggleTrackLock, setActiveTool, splitClip,
+    updateClipColorNodes, updateClipColorConnections
   } = useTimelineStore();
   const [activeTab, setActiveTab] = useState<'media' | 'ai' | 'effects'>('media');
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [showColorNodeEditor, setShowColorNodeEditor] = useState(false);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        // Only delete if not typing in an input
+        if (document.activeElement?.tagName !== "INPUT" && selectedClipId) {
+          removeClip(selectedClipId);
+          selectClip(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedClipId, removeClip, selectClip]);
+
+  // Layout state
+  const [timelineHeight, setTimelineHeight] = useState(320);
+  const [isResizingTimeline, setIsResizingTimeline] = useState(false);
+  const [showSidePanels, setShowSidePanels] = useState(true);
+
+  // Dragging state
+  const [dragState, setDragState] = useState<{
+    clipId: string;
+    type: 'move' | 'trim-start' | 'trim-end';
+    startMouseX: number;
+    startFrame: number;
+    startDuration: number;
+  } | null>(null);
 
   const selectedClip = clips.find(c => c.id === selectedClipId);
   
@@ -51,6 +85,60 @@ export default function App() {
     }
     return () => clearInterval(interval);
   }, [isPlaying, playheadFrame, setPlayhead]);
+
+  // Global drag handlers
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - dragState.startMouseX;
+      const deltaFrames = Math.round(deltaX / zoom);
+
+      if (dragState.type === 'move') {
+        const newStartFrame = Math.max(0, dragState.startFrame + deltaFrames);
+        updateClip(dragState.clipId, { startFrame: newStartFrame });
+      } else if (dragState.type === 'trim-start') {
+        const newStartFrame = Math.max(0, Math.min(dragState.startFrame + dragState.startDuration - 1, dragState.startFrame + deltaFrames));
+        const newDuration = dragState.startDuration - (newStartFrame - dragState.startFrame);
+        updateClip(dragState.clipId, { startFrame: newStartFrame, duration: newDuration });
+      } else if (dragState.type === 'trim-end') {
+        const newDuration = Math.max(1, dragState.startDuration + deltaFrames);
+        updateClip(dragState.clipId, { duration: newDuration });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDragState(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState, zoom, updateClip]);
+
+  // Timeline resize handler
+  useEffect(() => {
+    if (!isResizingTimeline) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newHeight = window.innerHeight - e.clientY;
+      setTimelineHeight(Math.max(150, Math.min(window.innerHeight - 200, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingTimeline(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingTimeline]);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -160,7 +248,8 @@ export default function App() {
       {/* --- Main Workspace --- */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column: Assets */}
-        <div className="w-[300px] border-r border-[#2A2430] flex flex-col shrink-0 bg-[#0E0B0F]">
+        {showSidePanels && (
+          <div className="w-[300px] border-r border-[#2A2430] flex flex-col shrink-0 bg-[#0E0B0F]">
           <div className="flex border-b border-[#2A2430]">
             <TabBtn active={activeTab === 'media'} onClick={() => setActiveTab('media')} label="Media" icon={<Video size={14} />} />
             <TabBtn active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} label="AI Studio" icon={<Sparkles size={14} />} />
@@ -225,6 +314,7 @@ export default function App() {
              )}
           </div>
         </div>
+        )}
 
         {/* Center: Preview */}
         <div className="flex-1 flex flex-col bg-[#070608]">
@@ -264,108 +354,235 @@ export default function App() {
                   <div className="absolute inset-y-0 left-0 w-3/4 bg-[#F5A623] rounded-full" />
                 </div>
               </div>
-              <Maximize2 size={16} className="text-[#7A6E80] cursor-pointer" />
+              <button 
+                onClick={() => setShowSidePanels(!showSidePanels)}
+                className={cn(
+                  "p-1.5 rounded transition-all",
+                  !showSidePanels ? "bg-[#F5A623] text-black" : "text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F0E8D8]"
+                )}
+                title="Toggle Side Panels"
+              >
+                <Maximize2 size={16} />
+              </button>
             </div>
           </div>
         </div>
 
         {/* Right Column: Inspector */}
-        <div className="w-[300px] border-l border-[#2A2430] flex flex-col shrink-0 bg-[#0E0B0F]">
-          <div className="h-10 bg-[#141116] border-b border-[#2A2430] px-3 flex items-center gap-2">
-            <Settings size={14} className="text-[#F5A623]" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#F0E8D8]">Inspector</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {selectedClip ? (
-              <InspectorSection title="Clip Properties" defaultOpen>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Clip Name</label>
-                    <input 
-                      type="text" 
-                      value={selectedClip.name}
-                      onChange={(e) => updateClip(selectedClip.id, { name: e.target.value })}
-                      className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+        {showSidePanels && (
+          <div className="w-[300px] border-l border-[#2A2430] flex flex-col shrink-0 bg-[#0E0B0F]">
+            <div className="h-10 bg-[#141116] border-b border-[#2A2430] px-3 flex items-center gap-2">
+              <Settings size={14} className="text-[#F5A623]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#F0E8D8]">Inspector</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {selectedClip ? (
+                <InspectorSection title="Clip Properties" defaultOpen>
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Start Frame</label>
+                      <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Clip Name</label>
                       <input 
-                        type="number" 
-                        value={selectedClip.startFrame}
-                        onChange={(e) => updateClip(selectedClip.id, { startFrame: parseInt(e.target.value) || 0 })}
+                        type="text" 
+                        value={selectedClip.name}
+                        onChange={(e) => updateClip(selectedClip.id, { name: e.target.value })}
                         className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Duration (F)</label>
-                      <input 
-                        type="number" 
-                        value={selectedClip.duration}
-                        onChange={(e) => updateClip(selectedClip.id, { duration: parseInt(e.target.value) || 1 })}
-                        className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
-                      />
-                    </div>
-                  </div>
-                  <div className="pt-2">
-                    <button 
-                      onClick={() => selectClip(null)}
-                      className="w-full py-2 border border-[#2A2430] rounded-lg text-[9px] font-bold uppercase tracking-widest text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F0E8D8] transition-all"
-                    >
-                      Deselect Clip
-                    </button>
-                  </div>
-                </div>
-              </InspectorSection>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-4">
-                <MousePointer2 size={32} className="mb-2" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">Select a clip to inspect properties</p>
-              </div>
-            )}
-
-            {selectedClip && (
-              <>
-                <InspectorSection title="Video Transform">
-                  <div className="space-y-4">
-                    <Slider label="Position X" value={0} />
-                    <Slider label="Position Y" value={0} />
-                    <Slider label="Scale" value={100} />
-                    <Slider label="Rotation" value={0} />
-                  </div>
-                </InspectorSection>
-                <InspectorSection title="Color Grading">
-                  <div className="space-y-4">
-                    <div className="flex justify-center py-4">
-                      <div className="w-32 h-32 rounded-full border-2 border-[#2A2430] relative bg-gradient-to-tr from-blue-900 via-green-900 to-red-900 opacity-50">
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-white shadow-xl shadow-white/50" />
-                        </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Start Frame</label>
+                        <input 
+                          type="number" 
+                          value={selectedClip.startFrame}
+                          onChange={(e) => updateClip(selectedClip.id, { startFrame: parseInt(e.target.value) || 0 })}
+                          className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Duration (F)</label>
+                        <input 
+                          type="number" 
+                          value={selectedClip.duration}
+                          onChange={(e) => updateClip(selectedClip.id, { duration: parseInt(e.target.value) || 1 })}
+                          className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
+                        />
                       </div>
                     </div>
-                    <Slider label="Exposure" value={0} />
-                    <Slider label="Contrast" value={10} />
-                    <Slider label="Saturation" value={100} />
+                    <div className="pt-2 grid grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => selectClip(null)}
+                        className="py-2 border border-[#2A2430] rounded-lg text-[9px] font-bold uppercase tracking-widest text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F0E8D8] transition-all"
+                      >
+                        Deselect
+                      </button>
+                      <button 
+                        onClick={() => {
+                          removeClip(selectedClip.id);
+                          selectClip(null);
+                        }}
+                        className="py-2 border border-red-900/30 bg-red-900/10 rounded-lg text-[9px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-900/20 transition-all flex items-center justify-center gap-1"
+                      >
+                        <Trash2 size={10} />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </InspectorSection>
-              </>
-            )}
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-4">
+                  <MousePointer2 size={32} className="mb-2" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Select a clip to inspect properties</p>
+                </div>
+              )}
+
+              {selectedClip && (
+                <>
+                  <InspectorSection title="Video Transform">
+                    <div className="space-y-4">
+                      <Slider label="Position X" value={0} />
+                      <Slider label="Position Y" value={0} />
+                      <Slider label="Scale" value={100} />
+                      <Slider label="Rotation" value={0} />
+                    </div>
+                  </InspectorSection>
+                  <InspectorSection title="Color Grading">
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => setShowColorNodeEditor(true)}
+                        className="w-full py-4 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-xl flex flex-col items-center gap-2 group hover:bg-[#F5A623]/20 transition-all"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-[#F5A623]/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Sparkles size={20} className="text-[#F5A623]" />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#F5A623]">Open Node Editor</span>
+                        <p className="text-[8px] text-[#7A6E80] px-4 text-center">Advanced node-based color grading workflow</p>
+                      </button>
+                      
+                      <div className="pt-4 border-t border-[#2A2430] space-y-4">
+                        <div className="flex justify-center py-2">
+                          <div className="w-24 h-24 rounded-full border-2 border-[#2A2430] relative bg-gradient-to-tr from-blue-900 via-green-900 to-red-900 opacity-50">
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-white shadow-xl shadow-white/50" />
+                            </div>
+                          </div>
+                        </div>
+                        <Slider label="Exposure" value={0} />
+                        <Slider label="Contrast" value={10} />
+                        <Slider label="Saturation" value={100} />
+                      </div>
+                    </div>
+                  </InspectorSection>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
+      {/* Color Node Editor Modal */}
+      <AnimatePresence>
+        {showColorNodeEditor && selectedClip && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="w-full h-full max-w-6xl max-h-[800px] bg-[#070608] border border-[#2A2430] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="h-12 bg-[#141116] border-b border-[#2A2430] flex items-center justify-between px-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#F5A623]/20 flex items-center justify-center">
+                    <Sparkles size={16} className="text-[#F5A623]" />
+                  </div>
+                  <div>
+                    <h2 className="text-[11px] font-black uppercase tracking-widest text-[#F0E8D8]">Lumina Color Grade</h2>
+                    <p className="text-[9px] text-[#7A6E80] font-bold uppercase tracking-tighter">Clip: {selectedClip.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowColorNodeEditor(false)}
+                  className="p-2 rounded-full hover:bg-[#1A161C] text-[#7A6E80] hover:text-[#F0E8D8] transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <ColorNodeEditor 
+                  clip={selectedClip}
+                  onUpdateNodes={(nodes) => updateClipColorNodes(selectedClip.id, nodes)}
+                  onUpdateConnections={(conns) => updateClipColorConnections(selectedClip.id, conns)}
+                />
+              </div>
+              <div className="h-10 bg-[#141116] border-t border-[#2A2430] flex items-center justify-between px-6">
+                <div className="flex items-center gap-4 text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">
+                  <div className="flex items-center gap-1.5">
+                    <Move size={12} />
+                    <span>Middle Mouse to Pan</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Circle size={8} className="fill-[#F5A623] text-[#F5A623]" />
+                    <span>Click ports to connect</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowColorNodeEditor(false)}
+                  className="px-4 py-1.5 bg-[#F5A623] text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-[#FF8C00] transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Timeline Resizer */}
+      <div 
+        className="h-1 bg-[#2A2430] hover:bg-[#F5A623] cursor-ns-resize transition-colors z-50"
+        onMouseDown={() => setIsResizingTimeline(true)}
+      />
+
       {/* --- Timeline --- */}
-      <div className="h-[320px] bg-[#070608] border-t border-[#2A2430] flex flex-col shrink-0">
+      <div 
+        style={{ height: `${timelineHeight}px` }}
+        className="bg-[#070608] border-t border-[#2A2430] flex flex-col shrink-0"
+      >
         <div className="h-10 bg-[#0E0B0F] border-b border-[#2A2430] flex items-center justify-between px-4">
           <div className="flex items-center gap-1">
-            <ToolBtn icon={<MousePointer2 size={14} />} active />
-            <ToolBtn icon={<Scissors size={14} />} />
-            <ToolBtn icon={<Hand size={14} />} />
-            <ToolBtn icon={<Search size={14} />} />
+            <ToolBtn icon={<MousePointer2 size={14} />} active={activeTool === 'select'} onClick={() => setActiveTool('select')} />
+            <ToolBtn icon={<Scissors size={14} />} active={activeTool === 'cut'} onClick={() => setActiveTool('cut')} />
+            <ToolBtn icon={<Activity size={14} />} active={activeTool === 'trim'} onClick={() => setActiveTool('trim')} />
+            <ToolBtn icon={<Hand size={14} />} active={activeTool === 'hand'} onClick={() => setActiveTool('hand')} />
+            <div className="w-px h-4 bg-[#2A2430] mx-1" />
+            <button 
+              onClick={() => setRippleEnabled(!rippleEnabled)}
+              className={cn(
+                "flex items-center gap-1.5 px-2 h-7 rounded text-[9px] font-bold uppercase tracking-wider transition-all",
+                rippleEnabled 
+                  ? "bg-[#F5A623]/10 text-[#F5A623] border border-[#F5A623]/30" 
+                  : "text-[#7A6E80] hover:bg-[#1A161C] border border-transparent"
+              )}
+              title="Ripple Edit: Shift subsequent clips when trimming or deleting"
+            >
+              <ArrowRightLeft size={12} />
+              <span>Ripple</span>
+            </button>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setTimelineHeight(timelineHeight > 100 ? 40 : 320)}
+                className="p-1.5 rounded text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F0E8D8] transition-all"
+                title={timelineHeight > 100 ? "Minimize Timeline" : "Restore Timeline"}
+              >
+                {timelineHeight > 100 ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
+              <div className="w-px h-4 bg-[#2A2430] mx-1" />
               <Search size={12} className="text-[#7A6E80]" />
               <input 
                 type="range" 
@@ -416,16 +633,67 @@ export default function App() {
                     key={clip.id} 
                     onClick={(e) => {
                       e.stopPropagation();
-                      selectClip(clip.id);
+                      if (activeTool === 'select') {
+                        selectClip(clip.id);
+                      } else if (activeTool === 'cut') {
+                        splitClip(clip.id, playheadFrame);
+                      }
                     }}
                     className={cn(
                       "absolute top-1 bottom-1 rounded border border-white/10 flex items-center px-2 overflow-hidden cursor-pointer transition-all",
                       clip.type === 'video' ? "bg-blue-600/40" : "bg-green-600/40",
                       track.isLocked && "cursor-not-allowed opacity-80",
-                      selectedClipId === clip.id && "border-[#F5A623] ring-1 ring-[#F5A623] ring-inset bg-opacity-60"
-                    )} style={{ left: `${clip.startFrame * zoom}px`, width: `${clip.duration * zoom}px` }}>
+                      selectedClipId === clip.id && "border-[#F5A623] ring-1 ring-[#F5A623] ring-inset bg-opacity-60",
+                      activeTool === 'cut' && "hover:border-red-500 hover:ring-1 hover:ring-red-500",
+                      activeTool === 'hand' && "cursor-grab active:cursor-grabbing"
+                    )} 
+                    style={{ left: `${clip.startFrame * zoom}px`, width: `${clip.duration * zoom}px` }}
+                    onMouseDown={(e) => {
+                      if (track.isLocked) return;
+                      if (activeTool === 'hand' || activeTool === 'select') {
+                        setDragState({
+                          clipId: clip.id,
+                          type: 'move',
+                          startMouseX: e.clientX,
+                          startFrame: clip.startFrame,
+                          startDuration: clip.duration
+                        });
+                      }
+                    }}
+                  >
+                    {/* Trim Handles */}
+                    {activeTool === 'trim' && !track.isLocked && (
+                      <>
+                        <div 
+                          className="absolute left-0 top-0 bottom-0 w-2 bg-white/20 hover:bg-[#F5A623] cursor-col-resize z-10"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            setDragState({
+                              clipId: clip.id,
+                              type: 'trim-start',
+                              startMouseX: e.clientX,
+                              startFrame: clip.startFrame,
+                              startDuration: clip.duration
+                            });
+                          }}
+                        />
+                        <div 
+                          className="absolute right-0 top-0 bottom-0 w-2 bg-white/20 hover:bg-[#F5A623] cursor-col-resize z-10"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            setDragState({
+                              clipId: clip.id,
+                              type: 'trim-end',
+                              startMouseX: e.clientX,
+                              startFrame: clip.startFrame,
+                              startDuration: clip.duration
+                            });
+                          }}
+                        />
+                      </>
+                    )}
                     {track.isLocked && <Lock size={8} className="mr-1 shrink-0" />}
-                    <span className="text-[8px] font-bold truncate">{clip.name}</span>
+                    <span className="text-[8px] font-bold truncate pointer-events-none">{clip.name}</span>
                   </div>
                 ))}
               </div>
@@ -439,9 +707,9 @@ export default function App() {
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5A623] rotate-45" />
           </div>
-        </div>
       </div>
     </div>
+  </div>
   );
 }
 
@@ -469,9 +737,9 @@ function PlayerBtn({ icon, active, onClick }: any) {
   );
 }
 
-function ToolBtn({ icon, active }: any) {
+function ToolBtn({ icon, active, onClick }: any) {
   return (
-    <button className={cn(
+    <button onClick={onClick} className={cn(
       "p-1.5 rounded transition-all",
       active ? "bg-[#F5A623] text-black" : "text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F0E8D8]"
     )}>

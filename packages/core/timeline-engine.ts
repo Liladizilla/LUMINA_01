@@ -12,6 +12,19 @@ export interface MediaAsset {
   type: 'video' | 'audio' | 'image';
 }
 
+export interface ColorNode {
+  id: string;
+  type: 'exposure' | 'white-balance' | 'curves' | 'lut' | 'color-wheel' | 'smh' | 'input' | 'output';
+  params: Record<string, any>;
+  position: { x: number; y: number };
+}
+
+export interface ColorConnection {
+  id: string;
+  sourceId: string;
+  targetId: string;
+}
+
 export interface Clip {
   id: string;
   assetId: string;
@@ -21,6 +34,8 @@ export interface Clip {
   duration: number; // in frames
   trackId: string;
   effects: Effect[];
+  colorNodes?: ColorNode[];
+  colorConnections?: ColorConnection[];
 }
 
 export interface Effect {
@@ -52,10 +67,14 @@ interface TimelineState {
   fps: number;
   zoom: number;
   selectedClipId: string | null;
+  activeTool: 'select' | 'cut' | 'trim' | 'hand';
+  rippleEnabled: boolean;
   
   // Actions
   setPlayhead: (frame: number) => void;
   setZoom: (zoom: number) => void;
+  setActiveTool: (tool: 'select' | 'cut' | 'trim' | 'hand') => void;
+  setRippleEnabled: (enabled: boolean) => void;
   selectClip: (id: string | null) => void;
   addMedia: (asset: MediaAsset) => void;
   addClip: (clip: Clip) => void;
@@ -64,6 +83,9 @@ interface TimelineState {
   addTrack: (track: Track) => void;
   toggleTrackVisibility: (id: string) => void;
   toggleTrackLock: (id: string) => void;
+  splitClip: (id: string, frame: number) => void;
+  updateClipColorNodes: (clipId: string, nodes: ColorNode[]) => void;
+  updateClipColorConnections: (clipId: string, connections: ColorConnection[]) => void;
 }
 
 export const useTimelineStore = create<TimelineState>()(
@@ -78,18 +100,48 @@ export const useTimelineStore = create<TimelineState>()(
     fps: 24,
     zoom: 2,
     selectedClipId: null,
+    activeTool: 'select',
+    rippleEnabled: true,
 
     setPlayhead: (frame) => set((state) => { state.playheadFrame = frame; }),
     setZoom: (zoom) => set((state) => { state.zoom = zoom; }),
+    setActiveTool: (tool) => set((state) => { state.activeTool = tool; }),
+    setRippleEnabled: (enabled) => set((state) => { state.rippleEnabled = enabled; }),
     selectClip: (id) => set((state) => { state.selectedClipId = id; }),
     addMedia: (asset) => set((state) => { state.mediaPool.push(asset); }),
     addClip: (clip) => set((state) => { state.clips.push(clip); }),
     removeClip: (id) => set((state) => { 
+      const clip = state.clips.find(c => c.id === id);
+      if (!clip) return;
+
+      if (state.rippleEnabled) {
+        const { startFrame, duration, trackId } = clip;
+        state.clips.forEach(c => {
+          if (c.trackId === trackId && c.startFrame > startFrame) {
+            c.startFrame -= duration;
+          }
+        });
+      }
+
       state.clips = state.clips.filter(c => c.id !== id); 
     }),
     updateClip: (id, updates) => set((state) => {
       const clip = state.clips.find(c => c.id === id);
-      if (clip) Object.assign(clip, updates);
+      if (!clip) return;
+
+      if (state.rippleEnabled && updates.duration !== undefined && updates.duration !== clip.duration) {
+        const diff = updates.duration - clip.duration;
+        const trackId = clip.trackId;
+        const startFrame = clip.startFrame;
+        
+        state.clips.forEach(c => {
+          if (c.trackId === trackId && c.startFrame > startFrame && c.id !== id) {
+            c.startFrame += diff;
+          }
+        });
+      }
+
+      Object.assign(clip, updates);
     }),
     addTrack: (track) => set((state) => { state.tracks.push(track); }),
     toggleTrackVisibility: (id) => set((state) => {
@@ -99,6 +151,35 @@ export const useTimelineStore = create<TimelineState>()(
     toggleTrackLock: (id) => set((state) => {
       const track = state.tracks.find(t => t.id === id);
       if (track) track.isLocked = !track.isLocked;
+    }),
+    splitClip: (id, frame) => set((state) => {
+      const clipIndex = state.clips.findIndex(c => c.id === id);
+      if (clipIndex === -1) return;
+      
+      const clip = state.clips[clipIndex];
+      const relativeFrame = frame - clip.startFrame;
+      
+      if (relativeFrame <= 0 || relativeFrame >= clip.duration) return;
+      
+      const originalDuration = clip.duration;
+      clip.duration = relativeFrame;
+      
+      const newClip: Clip = {
+        ...clip,
+        id: Math.random().toString(36).substr(2, 9),
+        startFrame: frame,
+        duration: originalDuration - relativeFrame,
+      };
+      
+      state.clips.push(newClip);
+    }),
+    updateClipColorNodes: (clipId, nodes) => set((state) => {
+      const clip = state.clips.find(c => c.id === clipId);
+      if (clip) clip.colorNodes = nodes;
+    }),
+    updateClipColorConnections: (clipId, connections) => set((state) => {
+      const clip = state.clips.find(c => c.id === clipId);
+      if (clip) clip.colorConnections = connections;
     }),
   }))
 );
