@@ -13,6 +13,7 @@ import { twMerge } from "tailwind-merge";
 // --- Core Logic Simulation ---
 import { useTimelineStore } from "../packages/core/timeline-engine";
 import ColorNodeEditor from "./components/ColorNodeEditor";
+import AICommandCenter from "./components/AICommandCenter";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -299,18 +300,7 @@ export default function App() {
                  </div>
                </div>
              ) : (
-               <div className="space-y-4">
-                 <div className="p-4 rounded-xl bg-gradient-to-br from-[#1A161C] to-[#0E0B0F] border border-[#F5A623]/20">
-                   <h3 className="text-[10px] font-black text-[#F5A623] uppercase tracking-widest mb-2">AI Clip Gen</h3>
-                   <textarea placeholder="Describe a scene..." className="w-full h-20 bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] focus:outline-none focus:border-[#F5A623] mb-2" />
-                   <button className="w-full py-2 bg-[#F5A623] text-black text-[9px] font-black uppercase rounded-lg">Generate with Stable Video</button>
-                 </div>
-                 <div className="space-y-2">
-                    <AIToolItem label="Background Remover" icon={<Box size={12} />} />
-                    <AIToolItem label="4K Upscaler" icon={<Maximize2 size={12} />} />
-                    <AIToolItem label="Whisper Subtitles" icon={<Type size={12} />} />
-                 </div>
-               </div>
+               <AICommandCenter />
              )}
           </div>
         </div>
