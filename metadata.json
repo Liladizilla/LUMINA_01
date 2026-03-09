@@ -1,0 +1,5 @@
+{
+  "name": "Lumina Studio",
+  "description": "Professional AI-powered cross-platform video editor (NLE) with cinematic color grading and GPU acceleration.",
+  "requestFramePermissions": ["camera", "microphone"]
+}
