@@ -4,7 +4,7 @@ import {
   Hand, Search, Plus, Layers, Video, Music, Type, Sparkles, 
   Settings, Download, Maximize2, Volume2, Clock, ChevronRight, 
   ChevronDown, MoreVertical, Trash2, Palette, Monitor, Smartphone, 
-  Cpu, Globe, Zap, Box, Activity, Terminal
+  Cpu, Globe, Zap, Box, Activity, Terminal, Eye, EyeOff, Lock, Unlock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -30,11 +30,16 @@ const THEME = {
 };
 
 export default function App() {
-  const { tracks, clips, mediaPool, playheadFrame, setPlayhead, addMedia, addClip } = useTimelineStore();
+  const { 
+    tracks, clips, mediaPool, playheadFrame, zoom, selectedClipId,
+    setPlayhead, setZoom, selectClip, updateClip, addMedia, addClip, 
+    toggleTrackVisibility, toggleTrackLock 
+  } = useTimelineStore();
   const [activeTab, setActiveTab] = useState<'media' | 'ai' | 'effects'>('media');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [zoom, setZoom] = useState(50);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedClip = clips.find(c => c.id === selectedClipId);
   
   // Animation loop for playhead
   useEffect(() => {
@@ -57,14 +62,30 @@ export default function App() {
 
     const url = URL.createObjectURL(file);
     
-    // Extract metadata
+    // Extract metadata and generate thumbnail
     const video = document.createElement('video');
     video.src = url;
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+
     video.onloadedmetadata = () => {
+      // Seek to 0.5 seconds for a representative frame
+      video.currentTime = Math.min(0.5, video.duration / 2);
+    };
+
+    video.onseeked = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
+
       const asset = {
         id: Math.random().toString(36).substr(2, 9),
         name: file.name,
         url: url,
+        thumbnailUrl: thumbnailUrl,
         duration: video.duration,
         width: video.videoWidth,
         height: video.videoHeight,
@@ -105,7 +126,7 @@ export default function App() {
         ::-webkit-scrollbar-thumb:hover { background: #3D3545; }
         .timeline-grid {
           background-image: linear-gradient(to right, #2A2430 1px, transparent 1px);
-          background-size: 40px 100%;
+          background-size: ${zoom * 20}px 100%;
         }
       `}</style>
 
@@ -170,7 +191,11 @@ export default function App() {
                    )}
                    {mediaPool.map(asset => (
                      <div key={asset.id} className="aspect-video bg-[#141116] border border-[#2A2430] rounded-lg overflow-hidden relative group cursor-pointer hover:border-[#F5A623]">
-                       <video src={asset.url} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                       {asset.thumbnailUrl ? (
+                         <img src={asset.thumbnailUrl} alt={asset.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" referrerPolicy="no-referrer" />
+                       ) : (
+                         <video src={asset.url} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                       )}
                        <div className="absolute top-1 left-1 bg-black/60 px-1 rounded text-[7px] font-mono text-[#F5A623]">
                          {asset.width}x{asset.height}
                        </div>
@@ -251,28 +276,81 @@ export default function App() {
             <span className="text-[10px] font-black uppercase tracking-widest text-[#F0E8D8]">Inspector</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <InspectorSection title="Video Transform" defaultOpen>
-              <div className="space-y-4">
-                <Slider label="Position X" value={0} />
-                <Slider label="Position Y" value={0} />
-                <Slider label="Scale" value={100} />
-                <Slider label="Rotation" value={0} />
-              </div>
-            </InspectorSection>
-            <InspectorSection title="Color Grading">
-              <div className="space-y-4">
-                <div className="flex justify-center py-4">
-                  <div className="w-32 h-32 rounded-full border-2 border-[#2A2430] relative bg-gradient-to-tr from-blue-900 via-green-900 to-red-900 opacity-50">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-white shadow-xl shadow-white/50" />
+            {selectedClip ? (
+              <InspectorSection title="Clip Properties" defaultOpen>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Clip Name</label>
+                    <input 
+                      type="text" 
+                      value={selectedClip.name}
+                      onChange={(e) => updateClip(selectedClip.id, { name: e.target.value })}
+                      className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Start Frame</label>
+                      <input 
+                        type="number" 
+                        value={selectedClip.startFrame}
+                        onChange={(e) => updateClip(selectedClip.id, { startFrame: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-tighter">Duration (F)</label>
+                      <input 
+                        type="number" 
+                        value={selectedClip.duration}
+                        onChange={(e) => updateClip(selectedClip.id, { duration: parseInt(e.target.value) || 1 })}
+                        className="w-full bg-black/40 border border-[#2A2430] rounded-lg p-2 text-[10px] text-[#F5A623] focus:outline-none focus:border-[#F5A623]"
+                      />
                     </div>
                   </div>
+                  <div className="pt-2">
+                    <button 
+                      onClick={() => selectClip(null)}
+                      className="w-full py-2 border border-[#2A2430] rounded-lg text-[9px] font-bold uppercase tracking-widest text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F0E8D8] transition-all"
+                    >
+                      Deselect Clip
+                    </button>
+                  </div>
                 </div>
-                <Slider label="Exposure" value={0} />
-                <Slider label="Contrast" value={10} />
-                <Slider label="Saturation" value={100} />
+              </InspectorSection>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-4">
+                <MousePointer2 size={32} className="mb-2" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Select a clip to inspect properties</p>
               </div>
-            </InspectorSection>
+            )}
+
+            {selectedClip && (
+              <>
+                <InspectorSection title="Video Transform">
+                  <div className="space-y-4">
+                    <Slider label="Position X" value={0} />
+                    <Slider label="Position Y" value={0} />
+                    <Slider label="Scale" value={100} />
+                    <Slider label="Rotation" value={0} />
+                  </div>
+                </InspectorSection>
+                <InspectorSection title="Color Grading">
+                  <div className="space-y-4">
+                    <div className="flex justify-center py-4">
+                      <div className="w-32 h-32 rounded-full border-2 border-[#2A2430] relative bg-gradient-to-tr from-blue-900 via-green-900 to-red-900 opacity-50">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-white shadow-xl shadow-white/50" />
+                        </div>
+                      </div>
+                    </div>
+                    <Slider label="Exposure" value={0} />
+                    <Slider label="Contrast" value={10} />
+                    <Slider label="Saturation" value={100} />
+                  </div>
+                </InspectorSection>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -289,7 +367,15 @@ export default function App() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Search size={12} className="text-[#7A6E80]" />
-              <input type="range" className="w-32 accent-[#F5A623] h-1 bg-[#2A2430] rounded-full appearance-none" />
+              <input 
+                type="range" 
+                min="0.5" 
+                max="10" 
+                step="0.1"
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="w-32 accent-[#F5A623] h-1 bg-[#2A2430] rounded-full appearance-none cursor-pointer" 
+              />
             </div>
             <div className="flex items-center gap-2 text-[10px] font-mono text-[#7A6E80]">
               <Clock size={12} />
@@ -300,17 +386,45 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto relative timeline-grid">
           {tracks.map(track => (
-            <div key={track.id} className="flex border-b border-[#2A2430] min-h-[48px]">
-              <div className="w-40 bg-[#141116] border-r border-[#2A2430] p-2 flex items-center gap-2 shrink-0 sticky left-0 z-20">
-                {track.type === 'video' ? <Video size={12} className="text-blue-400" /> : <Music size={12} className="text-green-400" />}
-                <span className="text-[9px] font-bold text-[#7A6E80] uppercase truncate">{track.name}</span>
+            <div key={track.id} className={cn(
+              "flex border-b border-[#2A2430] min-h-[48px]",
+              !track.isVisible && "opacity-30"
+            )}>
+              <div className="w-40 bg-[#141116] border-r border-[#2A2430] p-2 flex items-center justify-between shrink-0 sticky left-0 z-20">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  {track.type === 'video' ? <Video size={12} className="text-blue-400 shrink-0" /> : <Music size={12} className="text-green-400 shrink-0" />}
+                  <span className="text-[9px] font-bold text-[#7A6E80] uppercase truncate">{track.name}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button 
+                    onClick={() => toggleTrackVisibility(track.id)}
+                    className={cn("p-1 rounded hover:bg-[#2A2430] transition-colors", !track.isVisible && "text-[#F5A623]")}
+                  >
+                    {track.isVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+                  </button>
+                  <button 
+                    onClick={() => toggleTrackLock(track.id)}
+                    className={cn("p-1 rounded hover:bg-[#2A2430] transition-colors", track.isLocked && "text-[#F5A623]")}
+                  >
+                    {track.isLocked ? <Lock size={10} /> : <Unlock size={10} />}
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 relative h-12">
-                {clips.filter(c => c.trackId === track.id).map(clip => (
-                  <div key={clip.id} className={cn(
-                    "absolute top-1 bottom-1 rounded border border-white/10 flex items-center px-2 overflow-hidden cursor-pointer",
-                    clip.type === 'video' ? "bg-blue-600/40" : "bg-green-600/40"
-                  )} style={{ left: `${clip.startFrame * 2}px`, width: `${clip.duration * 2}px` }}>
+              <div className="flex-1 relative h-12" onClick={() => selectClip(null)}>
+                {track.isVisible && clips.filter(c => c.trackId === track.id).map(clip => (
+                  <div 
+                    key={clip.id} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectClip(clip.id);
+                    }}
+                    className={cn(
+                      "absolute top-1 bottom-1 rounded border border-white/10 flex items-center px-2 overflow-hidden cursor-pointer transition-all",
+                      clip.type === 'video' ? "bg-blue-600/40" : "bg-green-600/40",
+                      track.isLocked && "cursor-not-allowed opacity-80",
+                      selectedClipId === clip.id && "border-[#F5A623] ring-1 ring-[#F5A623] ring-inset bg-opacity-60"
+                    )} style={{ left: `${clip.startFrame * zoom}px`, width: `${clip.duration * zoom}px` }}>
+                    {track.isLocked && <Lock size={8} className="mr-1 shrink-0" />}
                     <span className="text-[8px] font-bold truncate">{clip.name}</span>
                   </div>
                 ))}
@@ -321,7 +435,7 @@ export default function App() {
           {/* Playhead */}
           <div 
             className="absolute top-0 bottom-0 w-[2px] bg-[#F5A623] z-30 pointer-events-none transition-all duration-75" 
-            style={{ left: `${160 + playheadFrame * 2}px` }}
+            style={{ left: `${160 + playheadFrame * zoom}px` }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#F5A623] rotate-45" />
           </div>

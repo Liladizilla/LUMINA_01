@@ -5,6 +5,7 @@ export interface MediaAsset {
   id: string;
   name: string;
   url: string;
+  thumbnailUrl?: string;
   duration: number; // in seconds
   width: number;
   height: number;
@@ -50,14 +51,19 @@ interface TimelineState {
   playheadFrame: number;
   fps: number;
   zoom: number;
+  selectedClipId: string | null;
   
   // Actions
   setPlayhead: (frame: number) => void;
+  setZoom: (zoom: number) => void;
+  selectClip: (id: string | null) => void;
   addMedia: (asset: MediaAsset) => void;
   addClip: (clip: Clip) => void;
   removeClip: (id: string) => void;
   updateClip: (id: string, updates: Partial<Clip>) => void;
   addTrack: (track: Track) => void;
+  toggleTrackVisibility: (id: string) => void;
+  toggleTrackLock: (id: string) => void;
 }
 
 export const useTimelineStore = create<TimelineState>()(
@@ -70,9 +76,12 @@ export const useTimelineStore = create<TimelineState>()(
     mediaPool: [],
     playheadFrame: 0,
     fps: 24,
-    zoom: 1,
+    zoom: 2,
+    selectedClipId: null,
 
     setPlayhead: (frame) => set((state) => { state.playheadFrame = frame; }),
+    setZoom: (zoom) => set((state) => { state.zoom = zoom; }),
+    selectClip: (id) => set((state) => { state.selectedClipId = id; }),
     addMedia: (asset) => set((state) => { state.mediaPool.push(asset); }),
     addClip: (clip) => set((state) => { state.clips.push(clip); }),
     removeClip: (id) => set((state) => { 
@@ -83,5 +92,13 @@ export const useTimelineStore = create<TimelineState>()(
       if (clip) Object.assign(clip, updates);
     }),
     addTrack: (track) => set((state) => { state.tracks.push(track); }),
+    toggleTrackVisibility: (id) => set((state) => {
+      const track = state.tracks.find(t => t.id === id);
+      if (track) track.isVisible = !track.isVisible;
+    }),
+    toggleTrackLock: (id) => set((state) => {
+      const track = state.tracks.find(t => t.id === id);
+      if (track) track.isLocked = !track.isLocked;
+    }),
   }))
 );
