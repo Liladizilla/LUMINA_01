@@ -22,6 +22,12 @@ export default function AICommandCenter() {
   const [isRecording, setIsRecording] = useState(false);
 
   const handleGenerate = async () => {
+    // Check if API is configured
+    if (!AIService.isConfigured()) {
+      setResult("⚠️ API key not configured. Please add VITE_GEMINI_API_KEY to your .env file and restart the app.");
+      return;
+    }
+    
     if (!prompt) return;
     setIsProcessing(true);
     try {
@@ -48,9 +54,11 @@ export default function AICommandCenter() {
         setResult(audio);
         addToHistory('audio', audio);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setResult("Error processing request.");
+      // Show more specific error message
+      const errorMessage = error?.message || "Error processing request.";
+      setResult(`❌ ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }

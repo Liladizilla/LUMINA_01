@@ -4,7 +4,8 @@ import {
   Hand, Search, Plus, Layers, Video, Music, Type, Sparkles, 
   Settings, Download, Maximize2, Volume2, Clock, ChevronRight, 
   ChevronDown, ChevronUp, MoreVertical, Trash2, Palette, Monitor, Smartphone, 
-  Cpu, Globe, Zap, Box, Activity, Terminal, Eye, EyeOff, Lock, Unlock, ArrowRightLeft
+  Cpu, Globe, Zap, Box, Activity, Terminal, Eye, EyeOff, Lock, Unlock, ArrowRightLeft,
+  X, Move, Circle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";

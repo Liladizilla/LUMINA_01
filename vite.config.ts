@@ -7,18 +7,23 @@ export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
+    // Expose environment variables to the client side securely
+    // Only variables starting with VITE_ are exposed to the client
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'import.meta.env.VITE_APP_TITLE': JSON.stringify('Lumina Studio'),
     },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    // Environment variables - client-side accessible via import.meta.env
+    envPrefix: 'VITE_',
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify - file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };
 });
+
