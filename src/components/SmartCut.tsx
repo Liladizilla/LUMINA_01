@@ -71,10 +71,12 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
       <div className="p-4 border-b border-[#2A2430] bg-[#141116] space-y-4">
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">Silence Threshold</label>
+            <label htmlFor="thresholdRange" className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">Silence Threshold</label>
             <span className="text-[9px] font-mono text-[#F5A623]">{threshold.toFixed(2)}</span>
           </div>
-          <input
+          <input 
+            id="thresholdRange"
+            title="Silence threshold"
             type="range"
             min="0.001"
             max="0.1"
@@ -87,12 +89,12 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">Min Duration (sec)</label>
+            <label htmlFor="minDurationRange" className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">Min Duration (sec)</label>
             <span className="text-[9px] font-mono text-[#F5A623]">{minSilenceDuration.toFixed(1)}s</span>
           </div>
-          <input
-            type="range"
-            min="0.1"
+          <input 
+            id="minDurationRange"
+            title="Minimum silence duration"
             max="3"
             step="0.1"
             value={minSilenceDuration}
@@ -104,6 +106,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
         <button
           onClick={analyzeAudio}
           disabled={isAnalyzing}
+          aria-label={isAnalyzing ? 'Analyzing audio' : 'Detect silent gaps'}
           className="w-full py-3 bg-[#F5A623] text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-[#FF8C00] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isAnalyzing ? (

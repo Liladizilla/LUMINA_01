@@ -1,6 +1,5 @@
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { User } from 'lucide-react';
 import Logo from './Logo';
 import { supabase } from '../lib/supabase';
 
@@ -14,11 +13,6 @@ export default function Login() {
           <Auth
             supabaseClient={supabase}
             view="sign_in"
-            socialLayout="horizontal"
-            socialButtonProps={{
-              provider: 'google',
-              icon: <User size={20} />
-            }}
             appearance={{ theme: ThemeSupa }}
             providers={['google']}
             theme="dark"

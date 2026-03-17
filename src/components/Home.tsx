@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SmartCut, { CutPoint } from './SmartCut';
 import { Play, Pause, Volume2, SlidersHorizontal, Film, Sparkles } from 'lucide-react';
 
@@ -82,6 +82,13 @@ export default function Home() {
   const onSetIn = () => setInPoint(currentTime);
   const onSetOut = () => setOutPoint(currentTime);
 
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+      videoRef.current.volume = gain;
+    }
+  }, [speed, gain]);
+
   const timelineProgress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const rangeStart = duration > 0 ? (inPoint / duration) * 100 : 0;
   const rangeWidth = duration > 0 ? Math.max(1, ((outPoint - inPoint) / duration) * 100) : 0;
@@ -132,7 +139,6 @@ export default function Home() {
                   style={{ filter: lutPresets[lut] }}
                   onLoadedMetadata={onLoadedMetadata}
                   onTimeUpdate={onTimeUpdate}
-                  playbackRate={speed}
                 />
               ) : (
                 <div className="text-center text-[#9B91A8]">
@@ -155,12 +161,12 @@ export default function Home() {
 
             <div className="grid sm:grid-cols-2 gap-2 text-xs text-[#DDD]">
               <div className="rounded-lg border border-[#2A2430] p-2 bg-[#15141E]">
-                <div className="flex justify-between"><span>Playback Speed</span><span>{speed.toFixed(2)}x</span></div>
-                <input type="range" min="0.25" max="2" step="0.05" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-full mt-1 accent-[#F5A623]" />
+                <label htmlFor="speedRange" className="flex justify-between"><span>Playback Speed</span><span>{speed.toFixed(2)}x</span></label>
+                <input id="speedRange" title="Playback speed" type="range" min="0.25" max="2" step="0.05" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-full mt-1 accent-[#F5A623]" />
               </div>
               <div className="rounded-lg border border-[#2A2430] p-2 bg-[#15141E]">
-                <div className="flex justify-between"><span>Audio Gain</span><span>{(gain * 100).toFixed(0)}%</span></div>
-                <input type="range" min="0.2" max="2" step="0.05" value={gain} onChange={(e) => setGain(Number(e.target.value))} className="w-full mt-1 accent-[#F5A623]" />
+                <label htmlFor="gainRange" className="flex justify-between"><span>Audio Gain</span><span>{(gain * 100).toFixed(0)}%</span></label>
+                <input id="gainRange" title="Audio gain" type="range" min="0.2" max="2" step="0.05" value={gain} onChange={(e) => setGain(Number(e.target.value))} className="w-full mt-1 accent-[#F5A623]" />
               </div>
             </div>
 
