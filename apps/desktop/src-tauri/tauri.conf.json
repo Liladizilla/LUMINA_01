@@ -5,8 +5,7 @@
   "version": "1.0.0",
   "build": {
     "devUrl": "http://localhost:5173",
-    "frontendDist": "../../dist",
-    "devtools": true
+    "frontendDist": "../../dist"
   },
   "app": {
     "windows": [
