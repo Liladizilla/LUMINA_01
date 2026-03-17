@@ -12,10 +12,9 @@ export default function Login() {
         <div className="bg-white/10 backdrop-blur p-8 rounded-2xl">
           <Auth
             supabaseClient={supabase}
-            view="sign_in"
-            appearance={{ theme: ThemeSupa }}
             providers={['google']}
-            theme="dark"
+            appearance={{ theme: ThemeSupa }}
+            localization={{ variables: { sign_in: { email_label: 'Email' } } }}
           />
         </div>
       </div>

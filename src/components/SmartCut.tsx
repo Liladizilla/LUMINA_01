@@ -159,6 +159,8 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); removeCut(cut.id); }}
+                    aria-label="Remove cut"
+                    title="Remove cut"
                     className="p-1 text-[#7A6E80] hover:text-red-400 transition-colors"
                   >
                     <Trash2 size={12} />

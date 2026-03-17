@@ -1,25 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "./lib/supabase";
-import Login from "./components/Login";
+import React, { useState } from "react";
 import Home from "./components/Home";
 
 export default function App() {
-  const [session, setSession] = useState<any>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  return <>{session ? <Home /> : <Login />}</>;
+  const [showHome] = useState(true);
+  return <>{showHome ? <Home /> : <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}</>;
 }
 

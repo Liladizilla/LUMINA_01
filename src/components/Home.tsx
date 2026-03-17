@@ -99,28 +99,33 @@ export default function Home() {
     setCuts(newCuts);
   };
 
+  const lutClass = lut === 'cinematic' ? 'filter-cinematic' : lut === 'vivid' ? 'filter-vivid' : lut === 'warm' ? 'filter-warm' : 'filter-default';
+
   return (
-    <div className="min-h-screen bg-[#070608] text-[#F0E8D8] p-4">
+    <div className="min-h-screen bg-[#0A0A0F] text-[#F5F3E7] p-4">
       <div className="max-w-6xl mx-auto space-y-4">
-        <header className="flex justify-between items-center gap-2">
+        <header className="flex flex-wrap justify-between items-start gap-2">
           <div>
-            <p className="text-xs uppercase text-[#B0A7BF] tracking-[.18em]">Lumina Studio</p>
-            <h1 className="text-3xl font-black">Web Video Editing Hub</h1>
-            <p className="mt-1 text-sm text-[#C6C0D0]">Drop a video, trim, stretch frames, add LUT and audio helpers.</p>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-[#A0A0A0]">Lumina Studio</p>
+            <h1 className="text-4xl md:text-5xl font-black text-white leading-[1.05]">
+              <span className="glitch relative inline-block" data-text="Lumina Studio">Lumina Studio</span>
+            </h1>
+            <p className="mt-1 text-sm text-[#B5B1B8]">Drop a video, trim, stretch frames, add LUT and audio helpers.</p>
           </div>
-          <div className="rounded-xl border border-[#2A2430] bg-[#131218] p-2 flex gap-2 items-center text-xs text-[#DDD]">
-            <Film size={16} /> Web Mode
+          <div className="rounded-xl border border-[#2F2D37] bg-[#16161F] p-2 flex gap-2 items-center text-xs text-[#E6E2D4]">
+            <Film size={16} className="text-[#F5A623]" />
+            Web Mode
           </div>
         </header>
 
         <section className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-4">
-          <div className="rounded-2xl border border-[#2A2430] bg-[#121118] p-4 space-y-3">
+          <div className="rounded-2xl border border-[#2B2A36] bg-[#11121A] p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase text-[#B3A9BF]">Play Screen</p>
-                <h2 className="text-lg font-bold">Preview & Playback</h2>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[#9E9CA8]">Play Screen</p>
+                <h2 className="text-lg font-bold text-white">Preview & Playback</h2>
               </div>
-              <div className="flex items-center gap-2 text-xs text-[#CCC]">
+              <div className="flex items-center gap-2 text-xs text-[#D8D3E5]">
                 <span className="px-2 py-1 rounded bg-[#1E1A26] border border-[#323040]">Timecode: {formatTimecode(currentTime)}</span>
                 <span className="px-2 py-1 rounded bg-[#1E1A26] border border-[#323040]">Frame: {frameLabel}</span>
               </div>
@@ -135,8 +140,7 @@ export default function Home() {
                 <video
                   ref={videoRef}
                   src={videoSrc}
-                  className="h-full w-full object-contain"
-                  style={{ filter: lutPresets[lut] }}
+                  className={`h-full w-full object-contain ${lutClass}`}
                   onLoadedMetadata={onLoadedMetadata}
                   onTimeUpdate={onTimeUpdate}
                 />
@@ -149,11 +153,11 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={togglePlay} className="rounded-lg bg-[#F5A623] text-black py-2 font-bold flex items-center justify-center gap-2 hover:bg-[#ffc15a] transition">
+              <button onClick={togglePlay} className="rounded-lg bg-[#F5A623] text-black py-2 font-bold flex items-center justify-center gap-2 hover:bg-[#f8c34b] transition">
                 {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                 {isPlaying ? 'Pause' : 'Play'}
               </button>
-              <label className="rounded-lg border border-[#2F2A3F] bg-[#1F1A27] py-2 px-3 text-sm flex justify-between items-center gap-2 cursor-pointer">
+              <label className="rounded-lg border border-[#2D2B3C] bg-[#171726] py-2 px-3 text-sm flex justify-between items-center gap-2 cursor-pointer text-[#E2DDED]">
                 Upload
                 <input type="file" accept="video/*" className="hidden" onChange={handleFile} />
               </label>
@@ -194,15 +198,15 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-3 rounded-xl border border-[#2A2430] bg-[#171522] p-3">
-              <div className="flex justify-between text-xs text-[#B0A9BF] mb-1">
+            <div className="mt-3 rounded-xl border border-[#2B2A37] bg-[#14141D] p-3">
+              <div className="flex justify-between text-xs text-[#C4C0CE] mb-1">
                 <span>In: {formatTimecode(inPoint)}</span>
                 <span>Out: {formatTimecode(outPoint)}</span>
                 <span>Range: {formatTimecode(Math.max(0, outPoint - inPoint))}</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-[#2A2635] overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#F5A623]/40 to-[#FF7A7A]/30" style={{ width: `${timelineProgress}%` }} />
-                <div className="absolute top-0 left-0 h-full bg-[#F5A623]" style={{ left: `${rangeStart}%`, width: `${rangeWidth}%` }} />
+              <div className="h-2 w-full rounded-full bg-[#2A2937] overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#F5A623]/40 to-[#FF7A7A]/30" />
+                <div className="absolute top-0 left-0 h-full w-1/2 bg-[#F5A623]" />
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
