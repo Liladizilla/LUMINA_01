@@ -33,7 +33,7 @@ export default function LUTLibrary({ onApplyLUT, currentLUT }: LUTLibraryProps) 
 
   return (
     <div className="flex flex-col h-full bg-[#070608]">
-      <div className="p-4 border-b border-[#2A2430] flex items-center justify-between">
+<div className="p-4 border-b border-[#2A2430] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#F5A623]/20 flex items-center justify-center">
             <Palette size={16} className="text-[#F5A623]" />
@@ -81,5 +81,6 @@ export default function LUTLibrary({ onApplyLUT, currentLUT }: LUTLibraryProps) 
         </>
       )}
     </div>
+  </div>
   );
 }

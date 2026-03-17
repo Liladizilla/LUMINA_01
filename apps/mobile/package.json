@@ -8,8 +8,8 @@
     "start": "react-native start"
   },
   "dependencies": {
-    "core": "workspace:*",
-    "ui": "workspace:*",
+    "core": "file:../../packages/core",
+    "ui": "file:../../packages/ui",
     "react": "18.3.1",
     "react-native": "0.74.0",
     "react-native-skia": "^1.0.0"

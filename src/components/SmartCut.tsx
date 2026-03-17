@@ -120,7 +120,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {cutPoints.length === 0 ? (
+{cutPoints.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center opacity-40 text-center">
             <Scissors size={32} className="mb-2" />
             <p className="text-[10px] font-bold uppercase tracking-widest">No cuts detected</p>
