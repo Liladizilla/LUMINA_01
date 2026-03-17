@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { createClient } from '@supabase/supabase-js';
-import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import { supabase } from "./lib/supabase";
 import Login from "./components/Login";
-import Home from "./components/Home"; // Rename current App content to Home
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import Home from "./components/Home";
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -25,10 +20,6 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  return (
-    <SessionContextProvider supabaseClient={supabase}>
-      {session ? <Home /> : <Login />}
-    </SessionContextProvider>
-  );
+  return <>{session ? <Home /> : <Login />}</>;
 }
 

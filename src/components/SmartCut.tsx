@@ -66,6 +66,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
           </div>
           <h2 className="text-[11px] font-black uppercase tracking-widest text-[#F0E8D8]">AI Smart Cut</h2>
         </div>
+      </div>
 
       <div className="p-4 border-b border-[#2A2430] bg-[#141116] space-y-4">
         <div className="space-y-2">
@@ -73,7 +74,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
             <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">Silence Threshold</label>
             <span className="text-[9px] font-mono text-[#F5A623]">{threshold.toFixed(2)}</span>
           </div>
-          <input 
+          <input
             type="range"
             min="0.001"
             max="0.1"
@@ -89,7 +90,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
             <label className="text-[9px] font-bold text-[#7A6E80] uppercase tracking-widest">Min Duration (sec)</label>
             <span className="text-[9px] font-mono text-[#F5A623]">{minSilenceDuration.toFixed(1)}s</span>
           </div>
-          <input 
+          <input
             type="range"
             min="0.1"
             max="3"
@@ -120,7 +121,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-{cutPoints.length === 0 ? (
+        {cutPoints.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center opacity-40 text-center">
             <Scissors size={32} className="mb-2" />
             <p className="text-[10px] font-bold uppercase tracking-widest">No cuts detected</p>
@@ -171,6 +172,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
                     <SkipForward size={10} />
                     <span>{formatTimecode(cut.endFrame)}</span>
                   </div>
+                </div>
               </div>
             ))}
           </div>
