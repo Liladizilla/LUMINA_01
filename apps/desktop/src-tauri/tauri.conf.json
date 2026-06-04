@@ -4,8 +4,8 @@
   "identifier": "com.luminastudio.app",
   "version": "1.0.0",
   "build": {
-    "devUrl": "http://localhost:5173",
-    "frontendDist": "../../dist",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../../dist/desktop",
     "devtools": true
   },
   "app": {
@@ -26,12 +26,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": "nsis",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
       "icons/icon.ico"
     ],
     "windows": {

@@ -19,10 +19,9 @@ export default defineConfig(({ mode }) => {
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
     },
-    build: {
-      rollupOptions: {
-        external: ['express', 'socket.io', 'yjs', 'y-websocket'],
-      },
+    // Exclude server-side code from client bundle
+    ssr: {
+      external: ['express', 'socket.io', 'yjs'],
     },
   };
 });

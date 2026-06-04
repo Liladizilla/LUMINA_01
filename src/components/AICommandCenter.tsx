@@ -10,6 +10,15 @@ import { useTimelineStore } from '../../packages/core/timeline-engine';
 
 const ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"];
 
+// Store type
+interface TimelineState {
+  addMedia: (asset: any) => void;
+  addClip: (clip: any) => void;
+}
+
+// Hook wrapper
+const useTimelineStoreTyped = useTimelineStore as () => TimelineState;
+
 export default function AICommandCenter() {
   const [activeMode, setActiveMode] = useState<'generate' | 'analyze' | 'video' | 'audio' | 'think' | 'veo' | 'tts'>('generate');
   const [prompt, setPrompt] = useState('');
@@ -23,7 +32,7 @@ export default function AICommandCenter() {
   const [isRecording, setIsRecording] = useState(false);
 
   // Timeline store actions
-  const { addMedia, addClip } = useTimelineStore();
+  const { addMedia, addClip } = useTimelineStoreTyped();
 
   // Import generated content to timeline
   const importToTimeline = useCallback((url: string, type: 'video' | 'audio' | 'image') => {

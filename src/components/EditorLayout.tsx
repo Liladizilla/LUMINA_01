@@ -2,14 +2,22 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useEffect, useState } from "react";
 import { LogOut, Home, Sparkles, Palette, Library, Scissors, Save, FolderOpen, Undo, Redo } from "lucide-react";
-import { useTimelineStore } from "../../packages/core/timeline-engine";
+import { useTimelineStore, undoTimeline, redoTimeline } from "../../packages/core/timeline-engine";
 
 export default function EditorLayout() {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   
   // Timeline store for project save/load
-  const { tracks, clips, mediaPool, playheadFrame, fps, zoom } = useTimelineStore();
+  const timelineState = useTimelineStore();
+  const tracks = (timelineState as any).tracks;
+  const clips = (timelineState as any).clips;
+  const mediaPool = (timelineState as any).mediaPool;
+  const playheadFrame = (timelineState as any).playheadFrame;
+  const fps = (timelineState as any).fps;
+  const zoom = (timelineState as any).zoom;
+  const pastStates = (timelineState as any).temporal?.pastStates || [];
+  const futureStates = (timelineState as any).temporal?.futureStates || [];
 
   useEffect(() => {
     // Get user email
@@ -122,8 +130,8 @@ export default function EditorLayout() {
         <div className="flex-1" />
 
         <button
-          onClick={() => useTimelineStore.getState().temporal?.undo?.()}
-          disabled={!(useTimelineStore.getState().temporal?.pastStates?.length || 0) > 0}
+          onClick={undoTimeline}
+          disabled={pastStates.length === 0}
           className="p-3 rounded-lg text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F5A623] transition-colors disabled:opacity-30"
           title="Undo (Ctrl+Z)"
         >
@@ -131,8 +139,8 @@ export default function EditorLayout() {
         </button>
         
         <button
-          onClick={() => useTimelineStore.getState().temporal?.redo?.()}
-          disabled={!(useTimelineStore.getState().temporal?.futureStates?.length || 0) > 0}
+          onClick={redoTimeline}
+          disabled={futureStates.length === 0}
           className="p-3 rounded-lg text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F5A623] transition-colors disabled:opacity-30"
           title="Redo (Ctrl+Y)"
         >

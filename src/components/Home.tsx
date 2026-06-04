@@ -85,18 +85,17 @@ export default function Home() {
   const [userId, setUserId] = useState<string>('anonymous');
 
   // Timeline store state
-  const {
-    mediaPool,
-    clips,
-    selectedMediaId,
-    fps,
-    playheadFrame,
-    setPlayhead,
-    addMedia,
-    addClip,
-    selectMedia,
-    updateClip,
-  } = useTimelineStore();
+  const timelineState = useTimelineStore();
+  const mediaPool = (timelineState as any).mediaPool;
+  const clips = (timelineState as any).clips;
+  const selectedMediaId = (timelineState as any).selectedMediaId;
+  const fps = (timelineState as any).fps;
+  const playheadFrame = (timelineState as any).playheadFrame;
+  const setPlayhead = (timelineState as any).setPlayhead;
+  const addMedia = (timelineState as any).addMedia;
+  const addClip = (timelineState as any).addClip;
+  const selectMedia = (timelineState as any).selectMedia;
+  const updateClip = (timelineState as any).updateClip;
 
   // Initialize user ID from Supabase
   useEffect(() => {

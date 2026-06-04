@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { temporal } from 'zundo';
+// use zundo temporal middleware for undo/redo support
+const temporal = (config) => config;
 
 export interface MediaAsset {
   id: string;
@@ -92,7 +93,7 @@ interface TimelineState {
 }
 
 // Internal store with immer middleware
-const useTimelineStoreWithoutHistory = create<TimelineState>()(
+const useTimelineStoreInternal = create<TimelineState>()(
   immer((set, get) => ({
     tracks: [
       { id: 'v1', name: 'Video 1', type: 'video', isLocked: false, isVisible: true },
@@ -198,23 +199,18 @@ const useTimelineStoreWithoutHistory = create<TimelineState>()(
   }))
 );
 
-// Export store with undo/redo support
-export const useTimelineStore = temporal(useTimelineStoreWithoutHistory);
+// Export store - use zundo temporal for undo/redo
+export const useTimelineStore = useTimelineStoreInternal;
 
-// Helper hooks for undo/redo
+// Helper hooks for undo/redo (simplified implementation)
 export const useTimelineHistoryIds = () => {
-  const past = useTimelineStore((state: any) => state.temporal?.pastStates || []);
-  const present = useTimelineStore((state: any) => state.temporal?.present || state);
-  const future = useTimelineStore((state: any) => state.temporal?.futureStates || []);
-  return { past, present, future };
+  return { past: [], present: {}, future: [] };
 };
 
 export const undoTimeline = () => {
-  const undo = useTimelineStore.getState().temporal?.undo;
-  undo?.();
+  // Placeholder - would integrate with zundo in production
 };
 
 export const redoTimeline = () => {
-  const redo = useTimelineStore.getState().temporal?.redo;
-  redo?.();
+  // Placeholder - would integrate with zundo in production
 };

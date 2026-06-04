@@ -83,7 +83,7 @@ export const AIService = {
       model: MODEL_CONFIG.PRO,
       contents: [{ parts: [{ text: prompt }] }],
       config: {
-        thinkingLevel: "HIGH",
+        thinkingConfig: { thinkingBudget: -1 } as any,
       },
     });
     return text;

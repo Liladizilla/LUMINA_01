@@ -9,6 +9,26 @@ import { supabase } from '../lib/supabase';
 const PIXELS_PER_SECOND = 100;
 const SNAP_THRESHOLD_FRAMES = 5; // Snap threshold in frames (at 24fps = ~0.2s)
 
+// Store type
+interface TimelineState {
+  tracks: Track[];
+  clips: ClipType[];
+  playheadFrame: number;
+  fps: number;
+  zoom: number;
+  activeTool: 'select' | 'cut' | 'trim' | 'hand';
+  rippleEnabled: boolean;
+  setPlayhead: (frame: number) => void;
+  setActiveTool: (tool: 'select' | 'cut' | 'trim' | 'hand') => void;
+  splitClip: (id: string, frame: number) => void;
+  removeClip: (id: string) => void;
+  updateClip: (id: string, updates: Partial<ClipType>) => void;
+  setRippleEnabled: (enabled: boolean) => void;
+}
+
+// Hook wrapper to handle type inference
+const useTimelineStoreTyped = useTimelineStore as () => TimelineState & { temporal?: { pastStates?: ClipType[]; futureStates?: ClipType[] } };
+
 export default function Timeline() {
   const containerRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -18,6 +38,7 @@ export default function Timeline() {
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project');
   
+  const store = useTimelineStoreTyped();
   const {
     tracks,
     clips,
@@ -32,34 +53,43 @@ export default function Timeline() {
     removeClip,
     updateClip,
     setRippleEnabled,
-  } = useTimelineStore();
+  } = store;
 
-  // Collaboration integration
-  const [userId, setUserId] = useState<string>('anonymous');
-  const { isConnected, state, updatePlayhead, updateClip: collabUpdateClip } = useCollaboration(projectId, userId);
+// Collaboration integration
+   const [userId, setUserId] = useState<string>('anonymous');
+   const { isConnected, state, trackCursor, updatePlayhead, updateClip: collabUpdateClip } = useCollaboration(projectId, userId);
 
-  // Get current user ID on mount
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.id) setUserId(user.id);
-    });
-  }, []);
+   // Get current user ID on mount
+   useEffect(() => {
+     supabase.auth.getUser().then(({ data: { user } }) => {
+       if (user?.id) setUserId(user.id);
+     });
+   }, []);
 
-  // Emit playhead updates when it changes
-  useEffect(() => {
-    if (isConnected) {
-      updatePlayhead(playheadFrame);
-    }
-  }, [playheadFrame, isConnected, updatePlayhead]);
+   // Emit playhead updates when it changes
+   useEffect(() => {
+     if (isConnected) {
+       updatePlayhead(playheadFrame);
+     }
+   }, [playheadFrame, isConnected, updatePlayhead]);
 
-  // Emit clip updates when they change
-  useEffect(() => {
-    if (isConnected && clips.length > 0) {
-      // Only emit the latest clip update to avoid spamming
-      const lastClip = clips[clips.length - 1];
-      collabUpdateClip(lastClip);
-    }
-  }, [clips, isConnected, collabUpdateClip]);
+   // Track mouse position on timeline for cursor sharing
+   useEffect(() => {
+     const handleMouseMove = (e: MouseEvent) => {
+       if (containerRef.current) {
+         const rect = containerRef.current.getBoundingClientRect();
+         const x = e.clientX - rect.left;
+         const y = e.clientY - rect.top;
+         trackCursor(x, y, playheadFrame);
+       }
+     };
+
+     const container = containerRef.current;
+     if (container && isConnected) {
+       container.addEventListener('mousemove', handleMouseMove);
+       return () => container.removeEventListener('mousemove', handleMouseMove);
+     }
+   }, [isConnected, trackCursor, playheadFrame]);
 
   // Calculate timeline dimensions
   const maxFrame = useMemo(() => {
@@ -394,12 +424,12 @@ function ToolButton({ active, onClick, icon: Icon, label }: {
 }
 
 // Remote collaborator playhead indicator
-function RemotePlayhead({ 
-  frame, 
-  frameToPixels, 
-  userId 
-}: { 
-  frame: number; 
+function RemotePlayhead({
+  frame,
+  frameToPixels,
+  userId
+}: {
+  frame: number;
   frameToPixels: (frame: number) => number;
   userId: string;
 }) {
@@ -407,7 +437,7 @@ function RemotePlayhead({
   const colors = ['#4ade80', '#60a5fa', '#facc15', '#fb923c', '#a78bfa', '#f871a1'];
   const colorIndex = Math.abs(userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
   const color = colors[colorIndex];
-  
+
   return (
     <div
       className="absolute top-0 bottom-0 w-0.5 z-9 pointer-events-none"

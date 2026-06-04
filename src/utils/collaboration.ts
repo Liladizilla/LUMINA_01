@@ -22,9 +22,10 @@ export function useCollaboration(projectId: string | null, userId: string) {
     clips: [],
     collaborators: [],
   });
-  
-  // Track local cursor position
+
+  // Reference to store latest cursor/frame for emission
   const cursorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const frameToPixelsRef = useRef<(frame: number) => number>(() => 0);
 
   // Initialize socket connection
   useEffect(() => {
@@ -48,8 +49,8 @@ export function useCollaboration(projectId: string | null, userId: string) {
       setState(prev => ({
         ...prev,
         playheadFrame: frame,
-        collaborators: prev.collaborators.map(c => 
-          c.userId === remoteUserId ? { ...c, lastFrame: frame } : c
+        collaborators: prev.collaborators.map(c =>
+          c.userId === remoteUserId ? { ...c, cursor: { ...c.cursor, frame } } : c
         ),
       }));
     });
@@ -57,7 +58,7 @@ export function useCollaboration(projectId: string | null, userId: string) {
     socketInstance.on('cursor-update', ({ userId: remoteUserId, cursor }) => {
       setState(prev => ({
         ...prev,
-        collaborators: prev.collaborators.map(c => 
+        collaborators: prev.collaborators.map(c =>
           c.userId === remoteUserId ? { ...c, cursor, lastSeen: Date.now() } : c
         ),
       }));
@@ -92,40 +93,34 @@ export function useCollaboration(projectId: string | null, userId: string) {
     };
   }, [projectId, userId]);
 
-  // Track mouse movement for cursor sharing
-  useEffect(() => {
-    if (!isConnected || !projectId) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      cursorRef.current = { x: e.clientX, y: e.clientY };
-      if (socket) {
-        socket.emit('cursor-move', {
-          projectId,
-          userId,
-          cursor: cursorRef.current,
-        });
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isConnected, projectId, userId, socket]);
+  // Track mouse/cursor movement on timeline for position sharing
+  const trackCursor = useCallback((x: number, y: number, frame?: number) => {
+    cursorRef.current = { x, y };
+    if (socket && projectId && isConnected) {
+      socket.emit('cursor-move', {
+        projectId,
+        userId,
+        cursor: { x, y, frame },
+      });
+    }
+  }, [socket, projectId, userId, isConnected]);
 
   const updatePlayhead = useCallback((frame: number) => {
-    if (socket && projectId) {
+    if (socket && projectId && isConnected) {
       socket.emit('playhead-move', { projectId, frame, userId });
     }
-  }, [socket, projectId, userId]);
+  }, [socket, projectId, userId, isConnected]);
 
   const updateClip = useCallback((clip: any) => {
-    if (socket && projectId) {
+    if (socket && projectId && isConnected) {
       socket.emit('clip-update', { projectId, clip, userId });
     }
-  }, [socket, projectId, userId]);
+  }, [socket, projectId, userId, isConnected]);
 
   return {
     isConnected,
     state,
+    trackCursor,
     updatePlayhead,
     updateClip,
   };

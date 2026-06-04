@@ -22,6 +22,14 @@ interface SmartCutProps {
   videoRef?: React.RefObject<HTMLVideoElement>;
 }
 
+// Store type
+interface TimelineState {
+  splitClip: (id: string, frame: number) => void;
+}
+
+// Hook wrapper to handle type inference
+const useTimelineStoreTyped = useTimelineStore as () => TimelineState;
+
 export default function SmartCut({ onApply, fps = 24, videoRef }: SmartCutProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [cutPoints, setCutPoints] = useState<CutPoint[]>([]);
@@ -30,7 +38,7 @@ export default function SmartCut({ onApply, fps = 24, videoRef }: SmartCutProps)
   const [minSilenceDuration, setMinSilenceDuration] = useState(0.5);
 
   // Timeline store actions
-  const { splitClip } = useTimelineStore();
+  const { splitClip } = useTimelineStoreTyped();
 
 /**
     * Analyze audio using Web Audio API to detect silence
