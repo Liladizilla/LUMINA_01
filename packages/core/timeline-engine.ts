@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { undo } from 'zundo';
+import { temporal } from 'zundo';
 
 export interface MediaAsset {
   id: string;
@@ -199,22 +199,22 @@ const useTimelineStoreWithoutHistory = create<TimelineState>()(
 );
 
 // Export store with undo/redo support
-export const useTimelineStore = undo(useTimelineStoreWithoutHistory);
+export const useTimelineStore = temporal(useTimelineStoreWithoutHistory);
 
 // Helper hooks for undo/redo
 export const useTimelineHistoryIds = () => {
-  const past = useTimelineStore((state: any) => state.past);
-  const present = useTimelineStore((state: any) => state.present);
-  const future = useTimelineStore((state: any) => state.future);
+  const past = useTimelineStore((state: any) => state.temporal?.pastStates || []);
+  const present = useTimelineStore((state: any) => state.temporal?.present || state);
+  const future = useTimelineStore((state: any) => state.temporal?.futureStates || []);
   return { past, present, future };
 };
 
 export const undoTimeline = () => {
-  const undo = useTimelineStore.getState().undo;
+  const undo = useTimelineStore.getState().temporal?.undo;
   undo?.();
 };
 
 export const redoTimeline = () => {
-  const redo = useTimelineStore.getState().redo;
+  const redo = useTimelineStore.getState().temporal?.redo;
   redo?.();
 };

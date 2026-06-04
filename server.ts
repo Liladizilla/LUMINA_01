@@ -103,10 +103,269 @@ async function startServer() {
     next();
   };
 
-  // AI endpoints remain the same...
-  // [keeping existing AI endpoints unchanged for brevity]
+  // AI Image Generation Proxy
+  app.post("/api/ai/generate-image", rateLimitMiddleware, async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
 
-  // Save project
+    try {
+      const { prompt, aspectRatio } = req.body;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_CONFIG.IMAGE_GEN}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              imageSize: "1K",
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Image generation failed" });
+      }
+
+      // Extract image data from response
+      const imagePart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+
+      if (imagePart?.inlineData) {
+        res.json({ image: `data:image/png;base64,${imagePart.inlineData.data}` });
+      } else {
+        res.status(500).json({ error: "No image generated" });
+      }
+    } catch (error: any) {
+      console.error("Image generation error:", error);
+      res.status(500).json({ error: error.message || "Image generation failed" });
+    }
+  });
+
+  // AI Text Generation Proxy (for analyze, think, etc.)
+  app.post("/api/ai/generate-text", rateLimitMiddleware, async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
+
+    try {
+      const { model = MODEL_CONFIG.PRO, contents, config } = req.body;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents, generationConfig: config }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Text generation failed" });
+      }
+
+      res.json({ text: data.candidates?.[0]?.content?.parts?.[0]?.text });
+    } catch (error: any) {
+      console.error("Text generation error:", error);
+      res.status(500).json({ error: error.message || "Text generation failed" });
+    }
+  });
+
+  // AI Video Generation Proxy (Veo)
+  app.post("/api/ai/generate-video", rateLimitMiddleware, async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
+
+    try {
+      const { prompt, config } = req.body;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_CONFIG.VIDEO}:generateVideo?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            config: {
+              ...config,
+              numberOfVideos: 1,
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Video generation failed" });
+      }
+
+      // Return operation name for polling
+      res.json({ operation: data.name, status: data.status });
+    } catch (error: any) {
+      console.error("Video generation error:", error);
+      res.status(500).json({ error: error.message || "Video generation failed" });
+    }
+  });
+
+  // Poll video operation status
+  app.get("/api/ai/video-status/:operationName", async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
+
+    try {
+      const { operationName } = req.params;
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${GEMINI_API_KEY}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Status check failed" });
+      }
+
+      res.json(data);
+    } catch (error: any) {
+      console.error("Status check error:", error);
+      res.status(500).json({ error: error.message || "Status check failed" });
+    }
+  });
+
+  // AI Audio/TTS Proxy
+  app.post("/api/ai/generate-speech", rateLimitMiddleware, async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
+
+    try {
+      const { text, voice = "Kore" } = req.body;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_CONFIG.TTS}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+              },
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Speech generation failed" });
+      }
+
+      const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+      if (audioData) {
+        res.json({ audio: `data:audio/wav;base64,${audioData}` });
+      } else {
+        res.status(500).json({ error: "No audio generated" });
+      }
+    } catch (error: any) {
+      console.error("Speech generation error:", error);
+      res.status(500).json({ error: error.message || "Speech generation failed" });
+    }
+  });
+
+  // AI Image Analysis Proxy
+  app.post("/api/ai/analyze-image", rateLimitMiddleware, async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
+
+    try {
+      const { imageBase64, prompt } = req.body;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_CONFIG.PRO}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { inlineData: { data: imageBase64, mimeType: "image/jpeg" } },
+                  { text: prompt },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Image analysis failed" });
+      }
+
+      res.json({ text: data.candidates?.[0]?.content?.parts?.[0]?.text });
+    } catch (error: any) {
+      console.error("Image analysis error:", error);
+      res.status(500).json({ error: error.message || "Image analysis failed" });
+    }
+  });
+
+  // AI Audio Transcription Proxy
+  app.post("/api/ai/transcribe-audio", rateLimitMiddleware, async (req, res) => {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
+    }
+
+    try {
+      const { audioBase64 } = req.body;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_CONFIG.FLASH}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { inlineData: { data: audioBase64, mimeType: "audio/wav" } },
+                  { text: "Transcribe this audio accurately." },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({ error: data.error || "Transcription failed" });
+      }
+
+      res.json({ text: data.candidates?.[0]?.content?.parts?.[0]?.text });
+    } catch (error: any) {
+      console.error("Transcription error:", error);
+      res.status(500).json({ error: error.message || "Transcription failed" });
+    }
+  });
+
+  // Project save/load API routes
   app.post("/api/projects", async (req, res) => {
     const { projectId, timelineData, name } = req.body;
     
@@ -145,13 +404,21 @@ async function startServer() {
       const doc = getYDoc(projectId);
       const yTimeline = doc.getMap("timeline");
       
+      // Notify others about the new collaborator
+      socket.to(`project:${projectId}`).emit("collaborator-joined", { userId });
+      
       // Send current state to joining client
       socket.emit("timeline-update", {
         clips: yTimeline.get("clips") || [],
         playheadFrame: yTimeline.get("playheadFrame") || 0,
       });
     });
-    
+
+    socket.on("cursor-move", ({ projectId, userId, cursor }) => {
+      // Broadcast cursor position to other collaborators
+      socket.to(`project:${projectId}`).emit("cursor-update", { userId, cursor });
+    });
+
     socket.on("playhead-move", ({ projectId, frame, userId }) => {
       const doc = getYDoc(projectId);
       const yTimeline = doc.getMap("timeline");
@@ -160,7 +427,7 @@ async function startServer() {
       // Broadcast to other collaborators
       socket.to(`project:${projectId}`).emit("playhead-update", { frame, userId });
     });
-    
+
     socket.on("clip-update", ({ projectId, clip, userId }) => {
       const doc = getYDoc(projectId);
       const yClips = doc.getArray("clips");
@@ -177,8 +444,8 @@ async function startServer() {
       
       socket.to(`project:${projectId}`).emit("clip-updated", { clip, userId });
     });
-    
-    socket.on("disconnect", () => {
+
+socket.on("disconnect", () => {
       console.log(`Client disconnected: ${socket.id}`);
     });
   });
@@ -194,6 +461,35 @@ async function startServer() {
       wsUrl: `${req.protocol}://${req.get("host")}/ws`,
       message: "Connect via Socket.IO or y-websocket provider",
     });
+  });
+
+  // Export endpoint - queues video render job
+  app.post("/api/export", async (req, res) => {
+    const { timelineData, format = "mp4", quality = "medium", projectId } = req.body;
+    
+    if (!timelineData) {
+      return res.status(400).json({ error: "Timeline data required" });
+    }
+    
+    // Generate a unique export ID
+    const exportId = Math.random().toString(36).substr(2, 9);
+    
+    // In production, this would queue a render job with actual FFmpeg processing
+    // For now, return a mock response
+    res.json({
+      exportId,
+      status: "queued",
+      message: "Export job queued. Connect to WebSocket for progress updates.",
+    });
+    
+    // Emit export progress via WebSocket (simulated)
+    if (projectId) {
+      io.to(`project:${projectId}`).emit("export-progress", {
+        exportId,
+        progress: 0,
+        status: "starting",
+      });
+    }
   });
 
   // Vite middleware for development
@@ -218,3 +514,5 @@ async function startServer() {
     }
   });
 }
+
+startServer();

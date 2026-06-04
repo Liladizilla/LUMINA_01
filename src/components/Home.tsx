@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Timeline from './Timeline';
 import SmartCut, { CutPoint } from './SmartCut';
-import { Play, Pause, Volume2, SlidersHorizontal, Film, Sparkles } from 'lucide-react';
+import { Play, Pause, Volume2, SlidersHorizontal, Film, Sparkles, Users } from 'lucide-react';
 import { useTimelineStore } from '../../packages/core/timeline-engine';
+import { useCollaboration } from '../utils/collaboration';
+import { supabase } from '../lib/supabase';
 
 const lutPresets: Record<string, string> = {
   none: 'none',
@@ -19,9 +22,55 @@ const formatTimecode = (seconds: number) => {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}:${f.toString().padStart(2, '0')}`;
 };
 
+/**
+ * Find the active clip at a given playhead frame
+ * Returns the clip and the relative time offset within that clip
+ */
+function findActiveClip(playheadFrame: number, clips: any[], fps: number) {
+  // Sort clips by start frame
+  const sortedClips = [...clips].sort((a, b) => a.startFrame - b.startFrame);
+  
+  for (let i = sortedClips.length - 1; i >= 0; i--) {
+    const clip = sortedClips[i];
+    const clipEndFrame = clip.startFrame + clip.duration;
+    
+    if (playheadFrame >= clip.startFrame && playheadFrame < clipEndFrame) {
+      // Found the active clip
+      const relativeFrame = playheadFrame - clip.startFrame;
+      return { clip, relativeFrame, isActive: true };
+    }
+  }
+  
+  // No clip found - check if playhead is before all clips (show first clip at start)
+  const firstClip = sortedClips[0];
+  if (firstClip && playheadFrame < firstClip.startFrame) {
+    return { clip: firstClip, relativeFrame: 0, isActive: false };
+  }
+  
+  // After all clips - show last clip at end
+  const lastClip = sortedClips[sortedClips.length - 1];
+  if (lastClip && playheadFrame >= lastClip.startFrame + lastClip.duration) {
+    return { clip: lastClip, relativeFrame: lastClip.duration, isActive: false };
+  }
+  
+  // Find clip that starts after playhead (for gaps)
+  const nextClip = sortedClips.find(c => c.startFrame > playheadFrame);
+  if (nextClip && nextClip.startFrame > 0) {
+    const prevClip = sortedClips[sortedClips.indexOf(nextClip) - 1];
+    if (prevClip) {
+      return { clip: prevClip, relativeFrame: prevClip.duration, isActive: false };
+    }
+  }
+  
+  return { clip: null, relativeFrame: 0, isActive: false };
+}
+
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [searchParams] = useSearchParams();
+  
+  // Get project ID from URL params
+  const projectId = searchParams.get('project');
   
   // Local UI state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,8 +82,9 @@ export default function Home() {
   const [gain, setGain] = useState(1);
   const [lut, setLut] = useState('none');
   const [cuts, setCuts] = useState<CutPoint[]>([]);
+  const [userId, setUserId] = useState<string>('anonymous');
 
-// Timeline store state
+  // Timeline store state
   const {
     mediaPool,
     clips,
@@ -48,9 +98,25 @@ export default function Home() {
     updateClip,
   } = useTimelineStore();
 
-  // Get current video source from store
-  const currentMedia = mediaPool.find(m => m.id === selectedMediaId);
-  const videoSrc = currentMedia?.url || '';
+  // Initialize user ID from Supabase
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.id) {
+        setUserId(user.id);
+      }
+    });
+  }, []);
+
+// Collaboration hook
+   const { isConnected, state: collabState } = useCollaboration(projectId, userId);
+
+   // Get active clip based on playhead position for multi-clip preview
+  const { clip: activeClip, relativeFrame } = findActiveClip(playheadFrame, clips, fps);
+  const activeMedia = activeClip ? mediaPool.find(m => m.id === activeClip.assetId) : null;
+  const videoSrc = activeMedia?.url || '';
+
+  // Track which clip is currently playing for preview switching
+  const [playingClipId, setPlayingClipId] = useState<string | null>(null);
 
   // Handle video drop - add to timeline store
   const onDropVideo = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -128,24 +194,6 @@ export default function Home() {
     }
   };
 
-  const onLoadedMetadata = () => {
-    if (!videoRef.current) return;
-    const dur = videoRef.current.duration || 0;
-    setDuration(dur);
-    setOutPoint(dur);
-    
-    // Update media asset duration in store
-    if (currentMedia) {
-      addMedia({ ...currentMedia, duration: dur });
-      
-      // Update clip duration (find clip for this media asset)
-      const clip = clips.find(c => c.assetId === currentMedia.id);
-      if (clip) {
-        updateClip(clip.id, { duration: Math.floor(dur * fps) });
-      }
-    }
-  };
-
   const onTimeUpdate = () => {
     if (!videoRef.current) return;
     const time = videoRef.current.currentTime;
@@ -180,6 +228,44 @@ export default function Home() {
       videoRef.current.currentTime = playheadFrame / fps;
     }
   }, [playheadFrame, fps]);
+
+  // Sync video source when active clip changes (multi-clip preview)
+  useEffect(() => {
+    if (!videoRef.current || !activeClip) return;
+    
+    const currentSrc = videoRef.current.src;
+    const newSrc = activeMedia?.url || '';
+    
+    if (activeClip.id !== playingClipId && currentSrc !== newSrc) {
+      setPlayingClipId(activeClip.id);
+      videoRef.current.src = newSrc;
+      // Set the time to the relative position within the clip
+      videoRef.current.currentTime = relativeFrame / fps;
+    } else if (playingClipId !== activeClip.id) {
+      // Just update the time if we're still on the same video
+      videoRef.current.currentTime = relativeFrame / fps;
+    }
+  }, [activeClip?.id, activeMedia?.url, playingClipId, relativeFrame, fps]);
+
+  // Update onLoadedMetadata to work with active clip
+  const onLoadedMetadata = () => {
+    if (!videoRef.current) return;
+    const dur = videoRef.current.duration || 0;
+    
+    // Update media asset duration in store
+    if (activeMedia) {
+      addMedia({ ...activeMedia, duration: dur });
+      
+      // Update clip duration (find clip for this media asset)
+      const clip = clips.find(c => c.assetId === activeMedia.id && c.id === activeClip?.id);
+      if (clip) {
+        updateClip(clip.id, { duration: Math.floor(dur * fps) });
+      }
+    }
+    
+    setDuration(dur);
+    setOutPoint(dur);
+  };
 
   // Keyboard shortcuts (industry standard: J/K/L for jog/shuttle, I/O for in/out)
   useEffect(() => {
@@ -290,6 +376,14 @@ export default function Home() {
         <div className="rounded-xl border border-[#2F2D37] bg-[#16161F] p-2 flex gap-2 items-center text-xs text-[#E6E2D4]">
           <Film size={16} className="text-[#F5A623]" />
           Web Mode
+          {projectId && (
+            <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded bg-[#1E1A26] border border-[#323040]">
+              <Users size={12} className={isConnected ? "text-green-400" : "text-[#7A6E80]"} />
+              <span className={isConnected ? "text-green-400" : "text-[#7A6E80]"}>
+                {isConnected ? `${collabState.collaborators.length + 1} online` : 'Offline'}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 

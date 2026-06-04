@@ -2,6 +2,9 @@ import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { Scissors, Move, MousePointer, Split } from 'lucide-react';
 import { useTimelineStore } from '../../packages/core/timeline-engine';
 import { Clip as ClipType, Track } from '../../packages/core/timeline-engine';
+import { useCollaboration } from '../utils/collaboration';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 const PIXELS_PER_SECOND = 100;
 const SNAP_THRESHOLD_FRAMES = 5; // Snap threshold in frames (at 24fps = ~0.2s)
@@ -10,6 +13,10 @@ export default function Timeline() {
   const containerRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+  
+  // Get project ID from URL - for collaboration
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project');
   
   const {
     tracks,
@@ -26,6 +33,33 @@ export default function Timeline() {
     updateClip,
     setRippleEnabled,
   } = useTimelineStore();
+
+  // Collaboration integration
+  const [userId, setUserId] = useState<string>('anonymous');
+  const { isConnected, state, updatePlayhead, updateClip: collabUpdateClip } = useCollaboration(projectId, userId);
+
+  // Get current user ID on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.id) setUserId(user.id);
+    });
+  }, []);
+
+  // Emit playhead updates when it changes
+  useEffect(() => {
+    if (isConnected) {
+      updatePlayhead(playheadFrame);
+    }
+  }, [playheadFrame, isConnected, updatePlayhead]);
+
+  // Emit clip updates when they change
+  useEffect(() => {
+    if (isConnected && clips.length > 0) {
+      // Only emit the latest clip update to avoid spamming
+      const lastClip = clips[clips.length - 1];
+      collabUpdateClip(lastClip);
+    }
+  }, [clips, isConnected, collabUpdateClip]);
 
   // Calculate timeline dimensions
   const maxFrame = useMemo(() => {
@@ -236,16 +270,28 @@ export default function Timeline() {
             ))}
           </div>
 
-          {/* Playhead */}
-          <div
-            ref={playheadRef}
-            className="absolute top-0 bottom-0 w-0.5 bg-[#F5A623] z-10 cursor-col-resize"
-            style={{ left: `${frameToPixels(playheadFrame)}px` }}
-            onMouseDown={handlePlayheadMouseDown}
-          >
-            <div className="absolute -top-1 -left-1 w-3 h-3 bg-[#F5A623] rotate-45" />
-          </div>
-        </div>
+{/* Collaborator cursors/playheads */}
+           {state?.collaborators?.map((collab) => 
+             collab.cursor?.frame !== undefined ? (
+               <RemotePlayhead 
+                 key={collab.userId}
+                 frame={collab.cursor.frame} 
+                 frameToPixels={frameToPixels}
+                 userId={collab.userId}
+               />
+             ) : null
+           )}
+
+           {/* Playhead */}
+           <div
+             ref={playheadRef}
+             className="absolute top-0 bottom-0 w-0.5 bg-[#F5A623] z-10 cursor-col-resize"
+             style={{ left: `${frameToPixels(playheadFrame)}px` }}
+             onMouseDown={handlePlayheadMouseDown}
+           >
+             <div className="absolute -top-1 -left-1 w-3 h-3 bg-[#F5A623] rotate-45" />
+           </div>
+         </div>
       </div>
     </div>
   );
@@ -344,5 +390,33 @@ function ToolButton({ active, onClick, icon: Icon, label }: {
     >
       <Icon size={12} />
     </button>
+  );
+}
+
+// Remote collaborator playhead indicator
+function RemotePlayhead({ 
+  frame, 
+  frameToPixels, 
+  userId 
+}: { 
+  frame: number; 
+  frameToPixels: (frame: number) => number;
+  userId: string;
+}) {
+  // Generate a consistent color from userId for each collaborator
+  const colors = ['#4ade80', '#60a5fa', '#facc15', '#fb923c', '#a78bfa', '#f871a1'];
+  const colorIndex = Math.abs(userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
+  const color = colors[colorIndex];
+  
+  return (
+    <div
+      className="absolute top-0 bottom-0 w-0.5 z-9 pointer-events-none"
+      style={{ left: `${frameToPixels(frame)}px` }}
+    >
+      <div className="absolute -top-1 -left-1 w-3 h-3 rotate-45" style={{ backgroundColor: color }} />
+      <div className="absolute -top-6 left-2 text-[7px] text-white font-mono whitespace-nowrap bg-black/80 px-1 rounded" style={{ color }}>
+        {userId.substring(0, 6)}
+      </div>
+    </div>
   );
 }

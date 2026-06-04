@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTimelineStore } from '../../packages/core/timeline-engine';
-import { analyzeVideoElement, generateWaveformData } from '../../utils/audio-analyzer';
+import { analyzeVideoElement } from '../utils/audio-analyzer';
 
 export interface CutPoint {
   id: string;

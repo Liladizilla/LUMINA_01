@@ -122,8 +122,8 @@ export default function EditorLayout() {
         <div className="flex-1" />
 
         <button
-          onClick={() => useTimelineStore.getState().undo?.()}
-          disabled={!useTimelineStore.getState().canUndo?.()}
+          onClick={() => useTimelineStore.getState().temporal?.undo?.()}
+          disabled={!(useTimelineStore.getState().temporal?.pastStates?.length || 0) > 0}
           className="p-3 rounded-lg text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F5A623] transition-colors disabled:opacity-30"
           title="Undo (Ctrl+Z)"
         >
@@ -131,8 +131,8 @@ export default function EditorLayout() {
         </button>
         
         <button
-          onClick={() => useTimelineStore.getState().redo?.()}
-          disabled={!useTimelineStore.getState().canRedo?.()}
+          onClick={() => useTimelineStore.getState().temporal?.redo?.()}
+          disabled={!(useTimelineStore.getState().temporal?.futureStates?.length || 0) > 0}
           className="p-3 rounded-lg text-[#7A6E80] hover:bg-[#1A161C] hover:text-[#F5A623] transition-colors disabled:opacity-30"
           title="Redo (Ctrl+Y)"
         >
