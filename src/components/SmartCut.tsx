@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { 
   Scissors, Play, Pause, Trash2, Wand2, Settings,
   Volume2, VolumeX, SkipBack, SkipForward, Loader2,
-  ChevronRight, AlertCircle, Check
+  ChevronRight, AlertCircle, Check, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTimelineStore } from '../../packages/core/timeline-engine';
+import { analyzeVideoElement, generateWaveformData } from '../../utils/audio-analyzer';
 
 export interface CutPoint {
   id: string;
@@ -17,28 +19,69 @@ export interface CutPoint {
 interface SmartCutProps {
   onApply: (cutPoints: CutPoint[]) => void;
   fps?: number;
+  videoRef?: React.RefObject<HTMLVideoElement>;
 }
 
-export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
+export default function SmartCut({ onApply, fps = 24, videoRef }: SmartCutProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [cutPoints, setCutPoints] = useState<CutPoint[]>([]);
   const [selectedCut, setSelectedCut] = useState<string | null>(null);
   const [threshold, setThreshold] = useState(0.01);
   const [minSilenceDuration, setMinSilenceDuration] = useState(0.5);
 
+  // Timeline store actions
+  const { splitClip } = useTimelineStore();
+
+/**
+    * Analyze audio using Web Audio API to detect silence
+    * Real implementation using Web Audio API to decode video audio
+    */
   const analyzeAudio = async () => {
+    if (!videoRef?.current) {
+      setCutPoints([{
+        id: 'error-' + Date.now(),
+        startFrame: 0,
+        endFrame: 10,
+        type: 'manual',
+        confidence: 0
+      }]);
+      return;
+    }
+
     setIsAnalyzing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    const sampleCuts: CutPoint[] = [
-      { id: '1', startFrame: 120, endFrame: 144, type: 'silent', confidence: 0.95 },
-      { id: '2', startFrame: 350, endFrame: 380, type: 'silent', confidence: 0.88 },
-      { id: '3', startFrame: 520, endFrame: 540, type: 'silent', confidence: 0.92 },
-      { id: '4', startFrame: 720, endFrame: 768, type: 'silent', confidence: 0.85 },
-    ];
-    
-    setCutPoints(sampleCuts);
-    setIsAnalyzing(false);
+    try {
+      const video = videoRef.current;
+      
+      // Use Web Audio API for real silence detection via video element
+      const analysis = await analyzeVideoElement(video, {
+        threshold,
+        minDuration: minSilenceDuration,
+        fps,
+      });
+      
+      // Convert silence regions to cut points
+      const detectedCuts: CutPoint[] = analysis.silenceRegions.map(region => ({
+        id: Math.random().toString(36).substr(2, 9),
+        startFrame: Math.floor(region.start * fps),
+        endFrame: Math.floor(region.end * fps),
+        type: 'silent' as const,
+        confidence: region.confidence,
+      }));
+      
+      setCutPoints(detectedCuts);
+    } catch (error) {
+      console.error('Audio analysis error:', error);
+      setCutPoints([{
+        id: 'error-' + Date.now(),
+        startFrame: 0,
+        endFrame: 10,
+        type: 'manual',
+        confidence: 0
+      }]);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const removeCut = (id: string) => {
@@ -47,6 +90,17 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
 
   const applyCuts = () => {
     onApply(cutPoints);
+    // Also split clips in the timeline store
+    // Find the active clip and split at each cut point
+    if (videoRef?.current) {
+      const video = videoRef.current;
+      const clipId = video.dataset.clipId;
+      if (clipId) {
+        cutPoints.forEach(cut => {
+          splitClip(clipId, cut.startFrame);
+        });
+      }
+    }
   };
 
   const formatTimecode = (frames: number) => {
@@ -56,6 +110,8 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
     const h = Math.floor(frames / (fps * 60 * 60));
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}:${f.toString().padStart(2, '0')}`;
   };
+
+  const resultError = cutPoints.find(c => c.type === 'manual' && c.id.startsWith('error-'));
 
   return (
     <div className="flex flex-col h-full bg-[#070608]">
@@ -85,6 +141,7 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
             onChange={(e) => setThreshold(parseFloat(e.target.value))}
             className="w-full accent-[#F5A623] h-1 bg-[#2A2430] rounded-full appearance-none cursor-pointer"
           />
+          <p className="text-[7px] text-[#7A6E80]">Lower = more sensitive to quiet audio</p>
         </div>
 
         <div className="space-y-2">
@@ -95,12 +152,15 @@ export default function SmartCut({ onApply, fps = 24 }: SmartCutProps) {
           <input 
             id="minDurationRange"
             title="Minimum silence duration"
+            type="range"
+            min="0.1"
             max="3"
             step="0.1"
             value={minSilenceDuration}
             onChange={(e) => setMinSilenceDuration(parseFloat(e.target.value))}
             className="w-full accent-[#F5A623] h-1 bg-[#2A2430] rounded-full appearance-none cursor-pointer"
           />
+          <p className="text-[7px] text-[#7A6E80]">Minimum silence length to detect</p>
         </div>
 
         <button

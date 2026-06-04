@@ -80,7 +80,26 @@ export default function LUTLibrary({ onApplyLUT, currentLUT }: LUTLibraryProps) 
           </div>
         </>
       )}
+<div className="mb-4" />
+        </div>
+      </div>
+
+      {selectedLUT && (
+        <>
+          <div className="p-4 border-t border-[#2A2430] bg-[#141116]">
+            <div className="flex justify-between mb-2">
+              <span className="text-[9px] font-bold text-[#7A6E80] uppercase">Intensity</span>
+              <span className="text-[9px] font-mono text-[#F5A623]">{intensity}%</span>
+            </div>
+            <input type="range" min="0" max="100" value={intensity} onChange={(e) => setIntensity(parseInt(e.target.value))} className="w-full accent-[#F5A623] h-1 bg-[#2A2430] rounded-full" />
+          </div>
+          <div className="p-4 border-t border-[#2A2430]">
+            <button onClick={() => onApplyLUT(selectedLUT)} className="w-full py-2 bg-[#F5A623] text-black text-[10px] font-black uppercase rounded-lg hover:bg-[#FF8C00]">
+              Apply LUT
+            </button>
+          </div>
+        </>
+      )}
     </div>
-  </div>
   );
 }

@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { 
   Sparkles, Image as ImageIcon, Video, Mic, Brain, 
   Send, Loader2, Maximize2, Download, Trash2, 
-  Layout, Type, Wand2, Camera
+  Layout, Type, Wand2, Camera, Plus
 } from 'lucide-react';
 import { AIService } from '../services/AIService';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTimelineStore } from '../../packages/core/timeline-engine';
 
 const ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"];
 
@@ -21,10 +22,43 @@ export default function AICommandCenter() {
   const audioRef = useRef<MediaRecorder | null>(null);
   const [isRecording, setIsRecording] = useState(false);
 
+  // Timeline store actions
+  const { addMedia, addClip } = useTimelineStore();
+
+  // Import generated content to timeline
+  const importToTimeline = useCallback((url: string, type: 'video' | 'audio' | 'image') => {
+    const mediaId = Math.random().toString(36).substr(2, 9);
+    
+    addMedia({
+      id: mediaId,
+      name: `AI Generated ${type}`,
+      url,
+      duration: 5, // Default 5 seconds for generated content
+      width: type === 'video' || type === 'image' ? 1920 : 0,
+      height: type === 'video' || type === 'image' ? 1080 : 0,
+      type,
+    });
+
+    // Add clip for video/image
+    if (type === 'video' || type === 'image') {
+      addClip({
+        id: Math.random().toString(36).substr(2, 9),
+        assetId: mediaId,
+        name: `AI ${type === 'video' ? 'Clip' : 'Image'}`,
+        type: type === 'video' ? 'video' : 'image',
+        startFrame: 0,
+        duration: 5 * 24, // 5 seconds at 24fps
+        trackId: type === 'video' ? 'v1' : 'v1',
+        effects: [],
+      });
+    }
+  }, [addMedia, addClip]);
+
   const handleGenerate = async () => {
     // Check if API is configured
-    if (!AIService.isConfigured()) {
-      setResult("⚠️ API key not configured. Please add VITE_GEMINI_API_KEY to your .env file and restart the app.");
+    const isConfigured = await AIService.isConfigured();
+    if (!isConfigured) {
+      setResult("⚠️ API not configured. Please ensure the server is running with GEMINI_API_KEY set.");
       return;
     }
     
@@ -225,19 +259,33 @@ export default function AICommandCenter() {
                 {result.startsWith('data:image') ? (
                   <div className="relative group">
                     <img src={result} alt="AI Generated" className="w-full rounded-lg shadow-2xl" referrerPolicy="no-referrer" />
-                    <button className="absolute top-2 right-2 p-2 bg-black/50 backdrop-blur-md rounded-lg opacity-0 group-hover:opacity-100 transition-all text-white">
-                      <Download size={14} />
+                    <button 
+                      onClick={() => importToTimeline(result, 'image')}
+                      className="absolute top-2 right-2 p-2 bg-black/50 backdrop-blur-md rounded-lg opacity-0 group-hover:opacity-100 transition-all text-white hover:bg-[#F5A623] hover:text-black"
+                      title="Import to timeline"
+                    >
+                      <Plus size={14} />
                     </button>
                   </div>
                 ) : result.startsWith('data:audio') ? (
                   <div className="flex flex-col gap-3">
                     <audio src={result} controls className="w-full" />
-                    <button className="w-full py-2 bg-[#F5A623] text-black text-[10px] font-black uppercase rounded-lg">Add to Timeline</button>
+                    <button 
+                      onClick={() => importToTimeline(result, 'audio')}
+                      className="w-full py-2 bg-[#F5A623] text-black text-[10px] font-black uppercase rounded-lg hover:bg-[#FF8C00]"
+                    >
+                      Add to Timeline
+                    </button>
                   </div>
                 ) : result.includes('veo-') || result.includes('.mp4') || result.includes('googlevideo') ? (
                   <div className="flex flex-col gap-3">
                     <video src={result} controls className="w-full rounded-lg" />
-                    <button className="w-full py-2 bg-[#F5A623] text-black text-[10px] font-black uppercase rounded-lg">Import to Media Pool</button>
+                    <button 
+                      onClick={() => importToTimeline(result, 'video')}
+                      className="w-full py-2 bg-[#F5A623] text-black text-[10px] font-black uppercase rounded-lg hover:bg-[#FF8C00]"
+                    >
+                      Import to Media Pool
+                    </button>
                   </div>
                 ) : (
                   <p className="text-[11px] text-[#F0E8D8] leading-relaxed whitespace-pre-wrap">{result}</p>

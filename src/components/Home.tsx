@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Timeline from './Timeline';
 import SmartCut, { CutPoint } from './SmartCut';
 import { Play, Pause, Volume2, SlidersHorizontal, Film, Sparkles } from 'lucide-react';
+import { useTimelineStore } from '../../packages/core/timeline-engine';
 
 const lutPresets: Record<string, string> = {
   none: 'none',
@@ -19,7 +21,9 @@ const formatTimecode = (seconds: number) => {
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoSrc, setVideoSrc] = useState<string>('');
+  const [searchParams] = useSearchParams();
+  
+  // Local UI state
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -30,26 +34,86 @@ export default function Home() {
   const [lut, setLut] = useState('none');
   const [cuts, setCuts] = useState<CutPoint[]>([]);
 
+// Timeline store state
+  const {
+    mediaPool,
+    clips,
+    selectedMediaId,
+    fps,
+    playheadFrame,
+    setPlayhead,
+    addMedia,
+    addClip,
+    selectMedia,
+    updateClip,
+  } = useTimelineStore();
+
+  // Get current video source from store
+  const currentMedia = mediaPool.find(m => m.id === selectedMediaId);
+  const videoSrc = currentMedia?.url || '';
+
+  // Handle video drop - add to timeline store
   const onDropVideo = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('video/')) {
-      setVideoSrc(URL.createObjectURL(file));
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setInPoint(0);
-      setOutPoint(10);
+      const url = URL.createObjectURL(file);
+      const assetId = Math.random().toString(36).substr(2, 9);
+      
+      // Add to media pool and select it
+      addMedia({
+        id: assetId,
+        name: file.name,
+        url,
+        duration: 0, // Will be updated on metadata load
+        width: 1920,
+        height: 1080,
+        type: 'video',
+      });
+      selectMedia(assetId);
+      
+      // Also add a clip on track v1
+      addClip({
+        id: Math.random().toString(36).substr(2, 9),
+        assetId,
+        name: file.name,
+        type: 'video',
+        startFrame: 0,
+        duration: 0, // Will be updated on metadata load
+        trackId: 'v1',
+        effects: [],
+      });
     }
-  }, []);
+  }, [addMedia, selectMedia, addClip]);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('video/')) {
-      setVideoSrc(URL.createObjectURL(file));
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setInPoint(0);
-      setOutPoint(10);
+      const url = URL.createObjectURL(file);
+      const assetId = Math.random().toString(36).substr(2, 9);
+      
+      addMedia({
+        id: assetId,
+        name: file.name,
+        url,
+        duration: 0,
+        width: 1920,
+        height: 1080,
+        type: 'video',
+      });
+      selectMedia(assetId);
+      
+      // Add a clip on track v1
+      addClip({
+        id: Math.random().toString(36).substr(2, 9),
+        assetId,
+        name: file.name,
+        type: 'video',
+        startFrame: 0,
+        duration: 0,
+        trackId: 'v1',
+        effects: [],
+      });
     }
   };
 
@@ -66,21 +130,42 @@ export default function Home() {
 
   const onLoadedMetadata = () => {
     if (!videoRef.current) return;
-    setDuration(videoRef.current.duration || 0);
-    setOutPoint(videoRef.current.duration || 10);
+    const dur = videoRef.current.duration || 0;
+    setDuration(dur);
+    setOutPoint(dur);
+    
+    // Update media asset duration in store
+    if (currentMedia) {
+      addMedia({ ...currentMedia, duration: dur });
+      
+      // Update clip duration (find clip for this media asset)
+      const clip = clips.find(c => c.assetId === currentMedia.id);
+      if (clip) {
+        updateClip(clip.id, { duration: Math.floor(dur * fps) });
+      }
+    }
   };
 
   const onTimeUpdate = () => {
     if (!videoRef.current) return;
-    setCurrentTime(videoRef.current.currentTime);
-    if (videoRef.current.currentTime >= outPoint) {
+    const time = videoRef.current.currentTime;
+    setCurrentTime(time);
+    setPlayhead(Math.floor(time * fps));
+    
+    if (time >= outPoint) {
       videoRef.current.pause();
       setIsPlaying(false);
     }
   };
 
-  const onSetIn = () => setInPoint(currentTime);
-  const onSetOut = () => setOutPoint(currentTime);
+  const onSetIn = () => {
+    setInPoint(currentTime);
+    setPlayhead(Math.floor(currentTime * fps));
+  };
+
+  const onSetOut = () => {
+    setOutPoint(currentTime);
+  };
 
   useEffect(() => {
     if (videoRef.current) {
@@ -89,11 +174,101 @@ export default function Home() {
     }
   }, [speed, gain]);
 
-  const timelineProgress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  // Sync playhead to video
+  useEffect(() => {
+    if (videoRef.current && Math.abs(videoRef.current.currentTime - playheadFrame / fps) > 0.1) {
+      videoRef.current.currentTime = playheadFrame / fps;
+    }
+  }, [playheadFrame, fps]);
+
+  // Keyboard shortcuts (industry standard: J/K/L for jog/shuttle, I/O for in/out)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Play/Pause - Space
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+        return;
+      }
+
+      // Frame step - Left/Right arrows
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentTime(prev => {
+          const newTime = Math.max(0, prev - 1 / fps);
+          setPlayhead(Math.floor(newTime * fps));
+          return newTime;
+        });
+        return;
+      }
+
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentTime(prev => {
+          const newTime = Math.min(duration, prev + 1 / fps);
+          setPlayhead(Math.floor(newTime * fps));
+          return newTime;
+        });
+        return;
+      }
+
+      // Set In - I
+      if (e.code === 'KeyI') {
+        e.preventDefault();
+        onSetIn();
+        return;
+      }
+
+      // Set Out - O
+      if (e.code === 'KeyO') {
+        e.preventDefault();
+        onSetOut();
+        return;
+      }
+
+      // Jog/Shuttle - J (reverse), K (stop), L (forward)
+      if (e.code === 'KeyJ') {
+        e.preventDefault();
+        if (videoRef.current) {
+          videoRef.current.playbackRate = -4;
+          videoRef.current.play();
+          setIsPlaying(true);
+        }
+        return;
+      }
+
+      if (e.code === 'KeyK') {
+        e.preventDefault();
+        if (videoRef.current) {
+          videoRef.current.pause();
+          setIsPlaying(false);
+        }
+        return;
+      }
+
+      if (e.code === 'KeyL') {
+        e.preventDefault();
+        if (videoRef.current) {
+          videoRef.current.playbackRate = 4;
+          videoRef.current.play();
+          setIsPlaying(true);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fps, duration, setPlayhead, togglePlay, onSetIn, onSetOut]);
+
   const rangeStart = duration > 0 ? (inPoint / duration) * 100 : 0;
   const rangeWidth = duration > 0 ? Math.max(1, ((outPoint - inPoint) / duration) * 100) : 0;
-
-  const frameLabel = useMemo(() => Math.floor(currentTime * 24), [currentTime]);
+  const frameLabel = useMemo(() => Math.floor(currentTime * fps), [currentTime, fps]);
 
   const onApplyCuts = (newCuts: CutPoint[]) => {
     setCuts(newCuts);
@@ -102,24 +277,28 @@ export default function Home() {
   const lutClass = lut === 'cinematic' ? 'filter-cinematic' : lut === 'vivid' ? 'filter-vivid' : lut === 'warm' ? 'filter-warm' : 'filter-default';
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-[#F5F3E7] p-4">
-      <div className="max-w-6xl mx-auto space-y-4">
-        <header className="flex flex-wrap justify-between items-start gap-2">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[#A0A0A0]">Lumina Studio</p>
-            <h1 className="text-4xl md:text-5xl font-black text-white leading-[1.05]">
-              <span className="glitch relative inline-block" data-text="Lumina Studio">Lumina Studio</span>
-            </h1>
-            <p className="mt-1 text-sm text-[#B5B1B8]">Drop a video, trim, stretch frames, add LUT and audio helpers.</p>
-          </div>
-          <div className="rounded-xl border border-[#2F2D37] bg-[#16161F] p-2 flex gap-2 items-center text-xs text-[#E6E2D4]">
-            <Film size={16} className="text-[#F5A623]" />
-            Web Mode
-          </div>
-        </header>
+    <div className="flex flex-col h-screen bg-[#0A0A0F] text-[#F5F3E7]">
+      {/* Header */}
+      <header className="flex flex-wrap justify-between items-start gap-2 p-4 bg-[#070608] border-b border-[#2A2430]">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.28em] text-[#A0A0A0]">Lumina Studio</p>
+          <h1 className="text-4xl md:text-5xl font-black text-white leading-[1.05]">
+            <span className="glitch relative inline-block" data-text="Lumina Studio">Lumina Studio</span>
+          </h1>
+          <p className="mt-1 text-sm text-[#B5B1B8]">Drop a video, trim, stretch frames, add LUT and audio helpers.</p>
+        </div>
+        <div className="rounded-xl border border-[#2F2D37] bg-[#16161F] p-2 flex gap-2 items-center text-xs text-[#E6E2D4]">
+          <Film size={16} className="text-[#F5A623]" />
+          Web Mode
+        </div>
+      </header>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-4">
-          <div className="rounded-2xl border border-[#2B2A36] bg-[#11121A] p-4 space-y-3">
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel - Preview & Controls */}
+        <div className="flex-1 flex flex-col p-4 space-y-4 min-w-0">
+          {/* Preview Screen */}
+          <div className="flex-1 rounded-2xl border border-[#2B2A36] bg-[#11121A] p-4 space-y-3 min-h-0 flex flex-col">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.18em] text-[#9E9CA8]">Play Screen</p>
@@ -187,6 +366,7 @@ export default function Home() {
             </div>
           </div>
 
+          {/* In/Out Controls */}
           <div className="rounded-2xl border border-[#2A2430] bg-[#121118] p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -206,7 +386,10 @@ export default function Home() {
               </div>
               <div className="h-2 w-full rounded-full bg-[#2A2937] overflow-hidden relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#F5A623]/40 to-[#FF7A7A]/30" />
-                <div className="absolute top-0 left-0 h-full w-1/2 bg-[#F5A623]" />
+                <div
+                  className="absolute top-0 h-full bg-[#F5A623] rounded-full"
+                  style={{ left: `${rangeStart}%`, width: `${rangeWidth}%` }}
+                />
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
@@ -228,21 +411,13 @@ export default function Home() {
               </ul>
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.6fr] gap-4">
-          <div className="rounded-2xl border border-[#2A2430] bg-[#131218] p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="text-xs uppercase text-[#B0A7BF]">SmartCut</p>
-                <h3 className="font-bold">Auto cut suggestions</h3>
-              </div>
-              <div className="text-xs text-[#94A2C2]">AI-assisted quick cuts</div>
-            </div>
-            <SmartCut onApply={onApplyCuts} fps={24} />
-          </div>
-          <div className="rounded-2xl border border-[#2A2430] bg-[#131218] p-4 space-y-2">
-            <p className="text-xs uppercase text-[#B0A7BF]">Applied cuts</p>
+        {/* Right Panel - SmartCut */}
+        <div className="w-80 border-l border-[#2A2430] flex flex-col">
+          <SmartCut onApply={onApplyCuts} fps={24} videoRef={videoRef} />
+          <div className="p-4 overflow-y-auto">
+            <p className="text-xs uppercase text-[#B0A7BF] mb-2">Applied cuts</p>
             {cuts.length === 0 ? (
               <p className="text-[#9B91A8] text-sm">No cuts applied yet.</p>
             ) : (
@@ -254,11 +429,13 @@ export default function Home() {
                 ))}
               </ul>
             )}
-            <div className="mt-2 text-xs text-[#9A8FB5]">Frame stretching is done using playback speed and in/out marking. For perfect frame alignment, use close in/out marks and frame step in the preview.</div>
+            <p className="mt-2 text-xs text-[#9A8FB5]">Frame stretching is done using playback speed and in/out marking.</p>
           </div>
-        </section>
+        </div>
       </div>
+
+      {/* Timeline Bar */}
+      <Timeline />
     </div>
   );
 }
-

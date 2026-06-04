@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { undo } from 'zundo';
 
 export interface MediaAsset {
   id: string;
@@ -63,6 +64,7 @@ interface TimelineState {
   tracks: Track[];
   clips: Clip[];
   mediaPool: MediaAsset[];
+  selectedMediaId: string | null;
   playheadFrame: number;
   fps: number;
   zoom: number;
@@ -76,6 +78,7 @@ interface TimelineState {
   setActiveTool: (tool: 'select' | 'cut' | 'trim' | 'hand') => void;
   setRippleEnabled: (enabled: boolean) => void;
   selectClip: (id: string | null) => void;
+  selectMedia: (id: string | null) => void;
   addMedia: (asset: MediaAsset) => void;
   addClip: (clip: Clip) => void;
   removeClip: (id: string) => void;
@@ -88,14 +91,16 @@ interface TimelineState {
   updateClipColorConnections: (clipId: string, connections: ColorConnection[]) => void;
 }
 
-export const useTimelineStore = create<TimelineState>()(
-  immer((set) => ({
+// Internal store with immer middleware
+const useTimelineStoreWithoutHistory = create<TimelineState>()(
+  immer((set, get) => ({
     tracks: [
       { id: 'v1', name: 'Video 1', type: 'video', isLocked: false, isVisible: true },
       { id: 'a1', name: 'Audio 1', type: 'audio', isLocked: false, isVisible: true },
     ],
     clips: [],
     mediaPool: [],
+    selectedMediaId: null,
     playheadFrame: 0,
     fps: 24,
     zoom: 2,
@@ -103,12 +108,21 @@ export const useTimelineStore = create<TimelineState>()(
     activeTool: 'select',
     rippleEnabled: true,
 
-    setPlayhead: (frame) => set((state) => { state.playheadFrame = frame; }),
-    setZoom: (zoom) => set((state) => { state.zoom = zoom; }),
-    setActiveTool: (tool) => set((state) => { state.activeTool = tool; }),
-    setRippleEnabled: (enabled) => set((state) => { state.rippleEnabled = enabled; }),
-    selectClip: (id) => set((state) => { state.selectedClipId = id; }),
-    addMedia: (asset) => set((state) => { state.mediaPool.push(asset); }),
+    setPlayhead: (frame) => set({ playheadFrame: frame }),
+    setZoom: (zoom) => set({ zoom }),
+    setActiveTool: (tool) => set({ activeTool: tool }),
+    setRippleEnabled: (enabled) => set({ rippleEnabled: enabled }),
+    selectClip: (id) => set({ selectedClipId: id }),
+    selectMedia: (id) => set({ selectedMediaId: id }),
+    addMedia: (asset) => set((state) => { 
+      const existingIndex = state.mediaPool.findIndex(m => m.id === asset.id);
+      if (existingIndex >= 0) {
+        Object.assign(state.mediaPool[existingIndex], asset);
+      } else {
+        state.mediaPool.push(asset);
+        state.selectedMediaId = asset.id;
+      }
+    }),
     addClip: (clip) => set((state) => { state.clips.push(clip); }),
     removeClip: (id) => set((state) => { 
       const clip = state.clips.find(c => c.id === id);
@@ -183,3 +197,24 @@ export const useTimelineStore = create<TimelineState>()(
     }),
   }))
 );
+
+// Export store with undo/redo support
+export const useTimelineStore = undo(useTimelineStoreWithoutHistory);
+
+// Helper hooks for undo/redo
+export const useTimelineHistoryIds = () => {
+  const past = useTimelineStore((state: any) => state.past);
+  const present = useTimelineStore((state: any) => state.present);
+  const future = useTimelineStore((state: any) => state.future);
+  return { past, present, future };
+};
+
+export const undoTimeline = () => {
+  const undo = useTimelineStore.getState().undo;
+  undo?.();
+};
+
+export const redoTimeline = () => {
+  const redo = useTimelineStore.getState().redo;
+  redo?.();
+};
