@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { useEffect, useState } from "react";
 import {
   LogOut, Home, Sparkles, Palette, Library, Scissors, Save, Undo, Redo,
@@ -33,6 +33,10 @@ export default function EditorLayout() {
   const mediaCount = Array.isArray(mediaPool) ? mediaPool.length : 0;
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setUserEmail(null);
+      return;
+    }
     let active = true;
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (active) setUserEmail(user?.email || null);
@@ -40,7 +44,7 @@ export default function EditorLayout() {
       if (active) setUserEmail(null);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) navigate("/login", { replace: true });
+      if (!session && isSupabaseConfigured) navigate("/login", { replace: true });
       setUserEmail(session?.user?.email || null);
     });
     return () => {
@@ -50,6 +54,7 @@ export default function EditorLayout() {
   }, [navigate]);
 
   const handleSignOut = async () => {
+    if (!isSupabaseConfigured) return;
     try {
       await supabase.auth.signOut();
     } finally {
@@ -61,19 +66,39 @@ export default function EditorLayout() {
     const name = window.prompt("Name this project", "Untitled project");
     if (!name?.trim()) return;
     setSaveState("saving");
+    const project = {
+      schemaVersion: 1,
+      app: "LUMINA Studio",
+      projectId: crypto.randomUUID(),
+      name: name.trim(),
+      savedAt: new Date().toISOString(),
+      timelineData: { tracks, clips, mediaPool, playheadFrame, fps, zoom },
+    };
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sign in to save projects to your account.");
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: crypto.randomUUID(),
-          timelineData: { tracks, clips, mediaPool, playheadFrame, fps, zoom },
-          name: name.trim(),
-        }),
-      });
-      if (!response.ok) throw new Error("Project save endpoint is unavailable.");
+      if (isSupabaseConfigured) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const response = await fetch("/api/projects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(project),
+          });
+          if (response.ok) {
+            setSaveState("saved");
+            window.setTimeout(() => setSaveState("idle"), 2400);
+            return;
+          }
+        }
+      }
+      const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name.trim().replace(/[^a-z0-9-_]+/gi, "-").replace(/^-|-$/g, "") + ".lumina.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 2400);
     } catch (error) {
