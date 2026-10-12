@@ -2,7 +2,7 @@ name: LUMINA Studio preview
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/lumina-studio-redesign-preview]
   pull_request:
     branches: [main]
   workflow_dispatch:
