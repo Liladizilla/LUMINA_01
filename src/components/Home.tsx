@@ -402,6 +402,7 @@ export default function Home() {
               onDrop={onDropVideo}
               onDragOver={(e) => e.preventDefault()}
             >
+              <div className="lumina-ambient-glow absolute inset-[14%] rounded-full bg-[#ffb020]/[0.075]" aria-hidden="true" />
               {videoSrc ? (
                 <video
                   ref={videoRef}
@@ -413,9 +414,15 @@ export default function Home() {
                   onTimeUpdate={onTimeUpdate}
                 />
               ) : (
-                <div className="text-center text-[#9B91A8]">
-                  <p className="text-sm">Drop a video file here</p>
-                  <p className="text-xs text-[#7A7288]">or use the upload button below.</p>
+                <div className="relative z-10 mx-4 max-w-sm rounded-2xl border border-white/[0.09] bg-[#11141c]/75 px-7 py-8 text-center shadow-2xl backdrop-blur-xl">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#ffb020]/25 bg-[#ffb020]/[0.08] text-[#ffc94d] shadow-[0_0_32px_rgba(255,176,32,0.08)]">
+                    <Film size={22} strokeWidth={1.6} />
+                  </div>
+                  <p className="text-sm font-semibold text-[#f0f4f8]">Your next cut starts here.</p>
+                  <p className="mt-2 text-xs leading-5 text-[#a0a8b8]">Drop footage into the stage or use Upload. I’ll keep your tools and timeline ready.</p>
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.035] px-3 py-1.5 text-[10px] text-[#8f98a8]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#ffb020]" /> Local preview · Ready for footage
+                  </div>
                 </div>
               )}
             </div>

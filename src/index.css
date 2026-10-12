@@ -99,3 +99,117 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+/* LUMINA NEXUS redesign tokens and cinematic workspace surfaces */
+:root {
+  --ln-bg: #0a0c12;
+  --ln-surface: rgba(255,255,255,.045);
+  --ln-surface-raised: rgba(255,255,255,.075);
+  --ln-border: rgba(255,255,255,.085);
+  --ln-border-lit: rgba(255,255,255,.14);
+  --ln-amber: #ffb020;
+  --ln-amber-bright: #ffc94d;
+  --ln-cyan: #00d8ee;
+  --ln-violet: #a78bfa;
+  --ln-text: #f0f4f8;
+  --ln-muted: #a0a8b8;
+  --ln-dim: #6b7280;
+}
+html, body, #root { background: var(--ln-bg); }
+.lumina-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 48% -18%, rgba(255,176,32,.075), transparent 44%),
+    radial-gradient(ellipse at 92% 55%, rgba(0,216,238,.035), transparent 34%),
+    var(--ln-bg) !important;
+}
+.lumina-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .15;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.13'/%3E%3C/svg%3E");
+}
+.lumina-sidebar {
+  background: rgba(12,14,21,.88) !important;
+  border-color: var(--ln-border) !important;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+.lumina-shell header,
+.lumina-shell footer {
+  background: rgba(12,14,21,.76) !important;
+  border-color: var(--ln-border) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.lumina-shell main > div,
+.lumina-shell [class*="rounded-xl"][class*="border"] {
+  border-color: var(--ln-border);
+}
+.lumina-shell button {
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.lumina-shell button:not(:disabled):hover {
+  border-color: rgba(255,201,77,.3);
+}
+.lumina-shell button:active:not(:disabled) { transform: translateY(1px); }
+.lumina-shell button:focus-visible,
+.lumina-shell a:focus-visible,
+.lumina-shell input:focus-visible,
+.lumina-shell textarea:focus-visible {
+  outline: 2px solid var(--ln-amber-bright);
+  outline-offset: 3px;
+}
+.lumina-shell input[type="range"] { accent-color: var(--ln-amber); cursor: pointer; }
+.lumina-shell .text-\[\#f4b84a\],
+.lumina-shell .text-\[\#f4c66f\] { text-shadow: 0 0 18px rgba(255,176,32,.13); }
+.lumina-shell .bg-\[\#f4b84a\] {
+  box-shadow: 0 5px 22px rgba(255,176,32,.13);
+}
+.lumina-shell video {
+  border-radius: 10px;
+  background: #06080d;
+}
+.lumina-shell [class*="border-dashed"] {
+  border-style: dashed;
+  border-color: rgba(255,176,32,.32);
+  background: radial-gradient(ellipse at center, rgba(255,176,32,.045), transparent 68%);
+}
+@keyframes lumina-ambient-breathe {
+  0%, 100% { opacity: .45; transform: scale(1); }
+  50% { opacity: .8; transform: scale(1.025); }
+}
+.lumina-ambient-glow {
+  animation: lumina-ambient-breathe 8s ease-in-out infinite;
+  filter: blur(48px);
+  pointer-events: none;
+}
+@media (max-width: 1100px) {
+  .lumina-sidebar { width: 68px !important; }
+  .lumina-sidebar > div:first-child { justify-content: center; padding-left: 0; padding-right: 0; }
+  .lumina-sidebar > div:first-child > div:nth-child(2),
+  .lumina-sidebar > div:first-child > span { display: none; }
+  .lumina-sidebar nav > div:not(.mt-8),
+  .lumina-sidebar nav a span,
+  .lumina-sidebar nav > div.mt-8 { display: none; }
+  .lumina-sidebar nav a { justify-content: center; padding: 12px 0; }
+  .lumina-sidebar nav { padding-left: 8px; padding-right: 8px; }
+  .lumina-sidebar > div:last-child { padding: 6px; }
+  .lumina-sidebar > div:last-child > div { justify-content: center; padding: 4px; }
+  .lumina-sidebar > div:last-child > div > div:nth-child(2),
+  .lumina-sidebar > div:last-child button { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lumina-ambient-glow { animation: none; }
+}
+@supports not ((backdrop-filter: blur(2px))) {
+  .lumina-sidebar, .lumina-shell header, .lumina-shell footer { background: #0c0e15 !important; }
+}
+
+.lumina-focus-mode .lumina-sidebar { display: none !important; }
+.lumina-focus-mode .lumina-context-panel { display: none !important; }
