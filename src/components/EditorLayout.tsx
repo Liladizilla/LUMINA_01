@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { useEffect, useState } from "react";
 import {
   LogOut, Home, Sparkles, Palette, Library, Scissors, Save, Undo, Redo,
-  Search, ChevronDown, Command, CircleHelp, Settings2, Film, Cloud, Check,
+  Search, ChevronDown, Command, CircleHelp, Settings2, Film, Cloud, Check, Maximize2, Minimize2,
 } from "lucide-react";
 import { useTimelineStore, undoTimeline, redoTimeline } from "../../packages/core/timeline-engine";
 
@@ -20,6 +20,7 @@ export default function EditorLayout() {
   const location = useLocation();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [focusMode, setFocusMode] = useState(false);
   const timelineState = useTimelineStore();
   const tracks = (timelineState as any).tracks;
   const clips = (timelineState as any).clips;
@@ -112,7 +113,7 @@ export default function EditorLayout() {
   const pageTitle = page?.label || "Studio";
 
   return (
-    <div className="lumina-shell flex h-screen min-h-[560px] overflow-hidden bg-[#08090c] text-[#f2f0eb]">
+    <div className={`lumina-shell flex h-screen min-h-[560px] overflow-hidden bg-[#08090c] text-[#f2f0eb] ${focusMode ? "lumina-focus-mode" : ""}`}>
       <aside className="lumina-sidebar flex w-[232px] shrink-0 flex-col border-r border-white/[0.07] bg-[#0c0d11]">
         <div className="flex h-[72px] items-center gap-3 border-b border-white/[0.07] px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#f4b84a]/30 bg-[#f4b84a]/10 text-[#f4b84a]">
@@ -186,6 +187,7 @@ export default function EditorLayout() {
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden items-center gap-1.5 text-[9px] text-[#8a8b93] sm:flex"><Cloud size={13}/><span>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed" : "All changes local"}</span>{saveState === "saved" && <Check size={12} className="text-emerald-400"/>}</div>
             <div className="mx-1 hidden h-6 w-px bg-white/[0.08] sm:block"/>
+            <button onClick={() => setFocusMode(value => !value)} title={focusMode ? "Exit focus mode" : "Focus mode"} aria-pressed={focusMode} className={`rounded-lg border p-2 transition ${focusMode ? "border-[#f4b84a]/40 bg-[#f4b84a]/[0.10] text-[#ffc94d]" : "border-white/[0.07] text-[#9b9ca4] hover:bg-white/[0.06] hover:text-white"}`}>{focusMode ? <Minimize2 size={15}/> : <Maximize2 size={15}/>}</button>
             <button onClick={undoTimeline} disabled={pastStates.length === 0} title="Undo" className="rounded-lg border border-white/[0.07] p-2 text-[#9b9ca4] transition hover:bg-white/[0.06] hover:text-white disabled:opacity-30"><Undo size={15}/></button>
             <button onClick={redoTimeline} disabled={futureStates.length === 0} title="Redo" className="rounded-lg border border-white/[0.07] p-2 text-[#9b9ca4] transition hover:bg-white/[0.06] hover:text-white disabled:opacity-30"><Redo size={15}/></button>
             <button onClick={handleSaveProject} disabled={saveState === "saving"} className="flex items-center gap-2 rounded-lg bg-[#f4b84a] px-3.5 py-2.5 text-[10px] font-bold text-[#17120a] shadow-[0_4px_20px_rgba(244,184,74,0.08)] transition hover:bg-[#ffd078] disabled:opacity-60"><Save size={14}/><span className="hidden sm:inline">{saveState === "saving" ? "Saving" : "Save project"}</span></button>
