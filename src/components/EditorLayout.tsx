@@ -168,7 +168,7 @@ export default function EditorLayout() {
               <div className="truncate text-[10px] font-medium text-[#dedde0]">{userEmail || "Guest workspace"}</div>
               <div className="mt-0.5 text-[9px] text-[#777982]">{userEmail ? "Personal workspace" : "Local preview"}</div>
             </div>
-            <button onClick={handleSignOut} title="Sign out" className="rounded-md p-2 text-[#777982] transition hover:bg-white/[0.06] hover:text-white"><LogOut size={14}/></button>
+            {isSupabaseConfigured && <button onClick={handleSignOut} title="Sign out" className="rounded-md p-2 text-[#777982] transition hover:bg-white/[0.06] hover:text-white"><LogOut size={14}/></button>}
           </div>
         </div>
       </aside>
