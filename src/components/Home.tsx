@@ -383,9 +383,9 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         {/* Left Panel - Preview & Controls */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-3 sm:p-4 lg:flex-row lg:overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-3 sm:p-4 lg:overflow-y-auto">
           {/* Preview Screen */}
-          <div className="flex min-h-[420px] min-w-0 flex-1 flex-col gap-3 rounded-xl border border-white/[0.07] bg-[#0e0f13] p-3 sm:p-4 lg:min-h-0">
+          <div className="flex min-h-[520px] min-w-0 flex-1 flex-col gap-3 border border-white/[0.07] bg-[#0b0c10] p-3 sm:p-4 lg:min-h-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.18em] text-[#9E9CA8]">Play Screen</p>
@@ -398,11 +398,10 @@ export default function Home() {
             </div>
 
             <div
-              className="h-64 rounded-xl border border-[#2A2430] bg-[#0B0A10] flex items-center justify-center relative overflow-hidden"
+              className="relative flex min-h-[320px] flex-1 items-center justify-center overflow-hidden border border-white/[0.08] bg-[#050609] aspect-video"
               onDrop={onDropVideo}
               onDragOver={(e) => e.preventDefault()}
             >
-              <div className="lumina-ambient-glow absolute inset-[14%] rounded-full bg-[#ffb020]/[0.075]" aria-hidden="true" />
               {videoSrc ? (
                 <video
                   ref={videoRef}
@@ -414,32 +413,32 @@ export default function Home() {
                   onTimeUpdate={onTimeUpdate}
                 />
               ) : (
-                <div className="relative z-10 mx-4 max-w-sm rounded-2xl border border-white/[0.09] bg-[#11141c]/75 px-7 py-8 text-center shadow-2xl backdrop-blur-xl">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#ffb020]/25 bg-[#ffb020]/[0.08] text-[#ffc94d] shadow-[0_0_32px_rgba(255,176,32,0.08)]">
+                <div className="relative z-10 mx-4 max-w-sm px-6 py-8 text-center">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-white/[0.12] bg-white/[0.035] text-[#e8b65c]">
                     <Film size={22} strokeWidth={1.6} />
                   </div>
-                  <p className="text-sm font-semibold text-[#f0f4f8]">Your next cut starts here.</p>
-                  <p className="mt-2 text-xs leading-5 text-[#a0a8b8]">Drop footage into the stage or use Upload. I’ll keep your tools and timeline ready.</p>
-                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.035] px-3 py-1.5 text-[10px] text-[#8f98a8]">
+                  <p className="text-sm font-medium text-[#f0f0f0]">No clip loaded</p>
+                  <p className="mt-2 text-xs leading-5 text-[#92949c]">Drop a video file here, or use Import media below.</p>
+                  <div className="mt-4 inline-flex items-center gap-2 border border-white/[0.09] px-3 py-1.5 text-[10px] text-[#8f98a8]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#ffb020]" /> Local preview · Ready for footage
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={togglePlay} className="rounded-lg bg-[#F5A623] text-black py-2 font-bold flex items-center justify-center gap-2 hover:bg-[#f8c34b] transition">
+            <div className="flex flex-wrap items-center gap-2 border-y border-white/[0.07] py-2">
+              <button onClick={togglePlay} className="min-w-24 rounded-md bg-[#e8b65c] px-4 py-2 text-xs font-semibold text-[#17130a] flex items-center justify-center gap-2 hover:bg-[#f4c977] transition">
                 {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                 {isPlaying ? 'Pause' : 'Play'}
               </button>
-              <label className="rounded-lg border border-[#2D2B3C] bg-[#171726] py-2 px-3 text-sm flex justify-between items-center gap-2 cursor-pointer text-[#E2DDED]">
+              <label className="rounded-md border border-white/[0.12] bg-white/[0.035] py-2 px-4 text-xs flex justify-between items-center gap-2 cursor-pointer text-[#dedee2]">
                 Upload
                 <input type="file" accept="video/*" className="hidden" onChange={handleFile} />
               </label>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-2 text-xs text-[#DDD]">
-              <div className="rounded-lg border border-[#2A2430] p-2 bg-[#15141E]">
+            <div className="grid grid-cols-2 gap-3 text-xs text-[#bfc0c7]">
+              <div className="border border-white/[0.07] p-2 bg-[#0e0f13]">
                 <label htmlFor="speedRange" className="flex justify-between"><span>Playback Speed</span><span>{speed.toFixed(2)}x</span></label>
                 <input id="speedRange" title="Playback speed" type="range" min="0.25" max="2" step="0.05" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-full mt-1 accent-[#F5A623]" />
               </div>
@@ -449,7 +448,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 items-center text-xs mt-2">
+            <div className="flex flex-wrap gap-2 items-center border-t border-white/[0.07] pt-2 text-xs">
               {['none', 'cinematic', 'vivid', 'warm'].map((preset) => (
                 <button
                   key={preset}
@@ -463,7 +462,7 @@ export default function Home() {
           </div>
 
           {/* In/Out Controls */}
-          <div className="rounded-xl border border-white/[0.07] bg-[#0e0f13] p-3 sm:p-4">
+          <div className="border border-white/[0.07] bg-[#0b0c10] p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase text-[#B2A8C2]">Editor</p>
@@ -531,7 +530,7 @@ export default function Home() {
       </div>
 
       {/* Timeline Bar */}
-      <div className="h-[190px] min-h-[160px] shrink-0 border-t border-white/[0.07] bg-[#0b0c10] sm:h-[220px]"><Timeline /></div>
+      <div className="h-[220px] min-h-[190px] shrink-0 border-t border-white/[0.1] bg-[#090a0d] sm:h-[240px]"><Timeline /></div>
     </div>
   );
 }
