@@ -364,36 +364,28 @@ export default function Home() {
   const lutClass = lut === 'cinematic' ? 'filter-cinematic' : lut === 'vivid' ? 'filter-vivid' : lut === 'warm' ? 'filter-warm' : 'filter-default';
 
   return (
-    <div className="flex flex-col h-screen bg-[#0A0A0F] text-[#F5F3E7]">
-      {/* Header */}
-      <header className="flex flex-wrap justify-between items-start gap-2 p-4 bg-[#070608] border-b border-[#2A2430]">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.28em] text-[#A0A0A0]">Lumina Studio</p>
-          <h1 className="text-4xl md:text-5xl font-black text-white leading-[1.05]">
-            <span className="glitch relative inline-block" data-text="Lumina Studio">Lumina Studio</span>
-          </h1>
-          <p className="mt-1 text-sm text-[#B5B1B8]">Drop a video, trim, stretch frames, add LUT and audio helpers.</p>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#08090c] text-[#f2f0eb]">
+      {/* Compact workspace context: global navigation lives in EditorLayout */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] bg-[#0b0c10] px-4 py-3 sm:px-6">
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#777982]">Editing workspace</p>
+          <div className="mt-1 flex items-center gap-2">
+            <h1 className="truncate text-sm font-semibold text-[#f1eee6]">Untitled sequence</h1>
+            <span className="rounded border border-white/[0.08] px-1.5 py-0.5 text-[9px] text-[#777982]">24 FPS</span>
+          </div>
         </div>
-        <div className="rounded-xl border border-[#2F2D37] bg-[#16161F] p-2 flex gap-2 items-center text-xs text-[#E6E2D4]">
-          <Film size={16} className="text-[#F5A623]" />
-          Web Mode
-          {projectId && (
-            <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded bg-[#1E1A26] border border-[#323040]">
-              <Users size={12} className={isConnected ? "text-green-400" : "text-[#7A6E80]"} />
-              <span className={isConnected ? "text-green-400" : "text-[#7A6E80]"}>
-                {isConnected ? `${collabState.collaborators.length + 1} online` : 'Offline'}
-              </span>
-            </div>
-          )}
+        <div className="flex items-center gap-2 text-[10px]">
+          <span className="rounded-lg border border-white/[0.08] bg-white/[0.025] px-2.5 py-2 text-[#a0a1a9]"><Film size={13} className="mr-1.5 inline text-[#f4b84a]"/>Browser editor</span>
+          {projectId && <span className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 ${isConnected ? "border-emerald-400/20 text-emerald-300" : "border-white/[0.08] text-[#777982]"}`}><Users size={12}/>{isConnected ? `${collabState.collaborators.length + 1} online` : "Collaboration offline"}</span>}
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         {/* Left Panel - Preview & Controls */}
-        <div className="flex-1 flex flex-col p-4 space-y-4 min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-3 sm:p-4 lg:flex-row lg:overflow-hidden">
           {/* Preview Screen */}
-          <div className="flex-1 rounded-2xl border border-[#2B2A36] bg-[#11121A] p-4 space-y-3 min-h-0 flex flex-col">
+          <div className="flex min-h-[420px] min-w-0 flex-1 flex-col gap-3 rounded-xl border border-white/[0.07] bg-[#0e0f13] p-3 sm:p-4 lg:min-h-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.18em] text-[#9E9CA8]">Play Screen</p>
@@ -462,7 +454,7 @@ export default function Home() {
           </div>
 
           {/* In/Out Controls */}
-          <div className="rounded-2xl border border-[#2A2430] bg-[#121118] p-4">
+          <div className="rounded-xl border border-white/[0.07] bg-[#0e0f13] p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase text-[#B2A8C2]">Editor</p>
@@ -509,9 +501,9 @@ export default function Home() {
         </div>
 
         {/* Right Panel - SmartCut */}
-        <div className="w-80 border-l border-[#2A2430] flex flex-col">
+        <div className="flex max-h-[42vh] w-full shrink-0 flex-col overflow-y-auto border-t border-white/[0.07] bg-[#0b0c10] lg:max-h-none lg:w-[300px] lg:border-l lg:border-t-0">
           <SmartCut onApply={onApplyCuts} fps={24} videoRef={videoRef} />
-          <div className="p-4 overflow-y-auto">
+          <div className="p-3 sm:p-4">
             <p className="text-xs uppercase text-[#B0A7BF] mb-2">Applied cuts</p>
             {cuts.length === 0 ? (
               <p className="text-[#9B91A8] text-sm">No cuts applied yet.</p>
@@ -530,7 +522,7 @@ export default function Home() {
       </div>
 
       {/* Timeline Bar */}
-      <Timeline />
+      <div className="h-[190px] min-h-[160px] shrink-0 border-t border-white/[0.07] bg-[#0b0c10] sm:h-[220px]"><Timeline /></div>
     </div>
   );
 }
