@@ -210,3 +210,6 @@ html, body, #root { background: var(--ln-bg); }
 @supports not ((backdrop-filter: blur(2px))) {
   .lumina-sidebar, .lumina-shell header, .lumina-shell footer { background: #0c0e15 !important; }
 }
+
+.lumina-focus-mode .lumina-sidebar { display: none !important; }
+.lumina-focus-mode .lumina-context-panel { display: none !important; }
