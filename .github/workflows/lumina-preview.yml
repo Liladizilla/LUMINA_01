@@ -2,7 +2,7 @@ name: LUMINA Studio preview
 
 on:
   push:
-    branches: [main, feat/lumina-studio-redesign-preview]
+    branches: [main, feat/lumina-studio-redesign-preview, fix/lumina-pr-build-validation]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -16,7 +16,6 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,6 +32,7 @@ jobs:
       - name: Prepare SPA fallback
         run: cp dist/index.html dist/404.html
       - name: Publish preview to GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
