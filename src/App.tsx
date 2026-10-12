@@ -7,7 +7,7 @@ import ColorNodeEditor from "./components/ColorNodeEditor";
 import LUTLibrary from "./components/LUTLibrary";
 import SmartCut from "./components/SmartCut";
 import EditorLayout from "./components/EditorLayout";
-import { supabase } from "./lib/supabase";
+import { supabase, isSupabaseConfigured } from "./lib/supabase";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
@@ -15,11 +15,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setIsLoading(false);
+      return;
+    }
     // Check for existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
       setIsLoading(false);
-    });
+    }).catch(() => setIsLoading(false));
 
     // Listen for auth changes
     const {
@@ -32,6 +36,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
     if (!isLoading) {
       if (isAuthenticated) {
         navigate("/editor", { replace: true });
