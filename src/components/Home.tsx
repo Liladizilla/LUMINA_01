@@ -99,11 +99,13 @@ export default function Home() {
 
   // Initialize user ID from Supabase
   useEffect(() => {
+    let mounted = true;
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.id) {
-        setUserId(user.id);
-      }
+      if (mounted && user?.id) setUserId(user.id);
+    }).catch(() => {
+      // Public preview mode has no session; keep the editor usable as a guest.
     });
+    return () => { mounted = false; };
   }, []);
 
 // Collaboration hook
