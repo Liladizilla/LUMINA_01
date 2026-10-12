@@ -63,6 +63,8 @@ export default function Timeline() {
    useEffect(() => {
      supabase.auth.getUser().then(({ data: { user } }) => {
        if (user?.id) setUserId(user.id);
+     }).catch(() => {
+       // Guest preview intentionally runs without an authenticated user.
      });
    }, []);
 
@@ -209,7 +211,7 @@ export default function Timeline() {
   }, [activeTool, zoom, fps, updateClip, getSnapPosition]);
 
   return (
-    <div className="bg-[#0A0A0F] border-t border-[#2A2430] flex flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden border-t border-white/[0.07] bg-[#0b0c10]">
       {/* Toolbar */}
       <div className="h-10 bg-[#141116] border-b border-[#2A2430] flex items-center px-3 gap-2">
         <span className="text-[9px] font-black uppercase tracking-widest text-[#7A6E80] mr-2">Tools</span>
@@ -344,7 +346,7 @@ function Waveform({ width, height }: { width: number; height: number }) {
   return (
     <div className="absolute inset-0 flex items-end justify-center gap-px opacity-60">
       {Array.from({ length: bars }).map((_, i) => {
-        const barHeight = Math.random() * 0.7 + 0.3; // 30-100% height
+        const barHeight = (Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1) * 0.7 + 0.3; // Stable illustrative waveform
         return (
           <div
             key={i}
