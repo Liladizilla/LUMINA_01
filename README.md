@@ -81,3 +81,14 @@ Lumina Studio follows a **"Cinematic Brutalist"** aesthetic.
 
 ---
 Built with ❤️ for creators by the Lumina Team.
+
+## LUMINA Studio browser preview
+
+The `feat/lumina-studio-redesign-preview` branch contains the current Studio UI refresh and a GitHub Actions workflow for a browser preview. Pushing to this branch runs the build and publishes the static app through GitHub Pages when deployment succeeds.
+
+- Guest mode is available when Supabase environment variables are not configured.
+- Project export downloads a `.lumina.json` snapshot of the current timeline state.
+- AI actions, account-backed cloud persistence, collaboration, and server-side media processing require their relevant backend services and credentials.
+- Desktop builds remain separate from the browser preview.
+
+The published preview URL is [LUMINA Studio on GitHub Pages](https://liladizilla.github.io/LUMINA_01/). Confirm the latest deployment in the repository's Actions tab before treating the URL as current.
