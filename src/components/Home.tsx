@@ -406,6 +406,8 @@ export default function Home() {
                 <video
                   ref={videoRef}
                   src={videoSrc}
+                  data-clip-id={activeClip?.id || ""}
+                  data-clip-start-frame={activeClip?.startFrame ?? 0}
                   className={`h-full w-full object-contain ${lutClass}`}
                   onLoadedMetadata={onLoadedMetadata}
                   onTimeUpdate={onTimeUpdate}

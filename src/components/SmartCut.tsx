@@ -97,17 +97,25 @@ export default function SmartCut({ onApply, fps = 24, videoRef }: SmartCutProps)
   };
 
   const applyCuts = () => {
-    onApply(cutPoints);
-    // Also split clips in the timeline store
-    // Find the active clip and split at each cut point
-    if (videoRef?.current) {
-      const video = videoRef.current;
-      const clipId = video.dataset.clipId;
-      if (clipId) {
-        cutPoints.forEach(cut => {
-          splitClip(clipId, cut.startFrame);
-        });
-      }
+    const video = videoRef?.current;
+    const clipId = video?.dataset.clipId;
+    const clipStartFrame = Number(video?.dataset.clipStartFrame || 0);
+    const validCuts = cutPoints
+      .filter(cut => !cut.id.startsWith('error-') && cut.endFrame > cut.startFrame)
+      .sort((a, b) => b.startFrame - a.startFrame);
+
+    onApply(validCuts);
+
+    // Split from the end backwards so each split still targets the original
+    // left-hand clip ID. Cut points are media-relative, so offset them by the
+    // clip's timeline start before applying them to the timeline store.
+    if (clipId) {
+      validCuts.forEach(cut => {
+        const absoluteStart = clipStartFrame + cut.startFrame;
+        const absoluteEnd = clipStartFrame + cut.endFrame;
+        splitClip(clipId, absoluteEnd);
+        splitClip(clipId, absoluteStart);
+      });
     }
   };
 
